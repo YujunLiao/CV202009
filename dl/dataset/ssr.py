@@ -296,8 +296,8 @@ class SSRTest(SemanticSensitiveRot):
         img = to_i_tf_fn(img_t)
         img = test_tf_fn(self.args)(img)
         img_t = to_t_tf_fn(img)
-        img_t = norm_tf_fn(img_t)
-        return img_t, n, label
+        # img_t = norm_tf_fn(img_t)
+        return norm_tf_fn(img_t), n, label, img_t
 
 
 

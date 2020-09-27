@@ -29,9 +29,9 @@ def confusion_matrix(model, data_loader, n_classes, ust_classes, device):
     total = len(data_loader.dataset)
     # matrix = np.zeros((n_classes, n_classes))
     matrix_ust = np.zeros((ust_classes, ust_classes))
-    for j, (data, n, c_l) in enumerate(data_loader):
-        data, n, c_l = data.to(device), n.to(device), c_l.to(device)
-        n_logit, c_l_logit = model(data)
+    for j, (norm_data, n, c_l, data) in enumerate(data_loader):
+        norm_data, n, c_l = norm_data.to(device), n.to(device), c_l.to(device)
+        n_logit, c_l_logit = model(norm_data)
         # _, c_l_pred = c_l_logit.max(dim=1)
         _, n_pred = n_logit.max(dim=1)
         # for (pred, real) in zip(c_l_pred, c_l):
