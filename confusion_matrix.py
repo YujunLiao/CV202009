@@ -1,4 +1,6 @@
 import os, sys
+import socket
+import torchvision.transforms as tf
 import torch
 from dgssr_trainer import model_fns, Trainer
 from dl.data_loader.utils.get_p_l import get_p_l
@@ -27,7 +29,7 @@ def confusion_matrix(model, data_loader, n_classes, ust_classes, device):
     total = len(data_loader.dataset)
     # matrix = np.zeros((n_classes, n_classes))
     matrix_ust = np.zeros((ust_classes, ust_classes))
-    for _, (data, n, c_l) in enumerate(data_loader):
+    for j, (data, n, c_l) in enumerate(data_loader):
         data, n, c_l = data.to(device), n.to(device), c_l.to(device)
         n_logit, c_l_logit = model(data)
         # _, c_l_pred = c_l_logit.max(dim=1)
@@ -36,6 +38,12 @@ def confusion_matrix(model, data_loader, n_classes, ust_classes, device):
         #     matrix[real][pred] += 1
         for (pred, real) in zip(n_pred, n):
             matrix_ust[real][pred] += 1
+        for i in range(len(n_pred)):
+            temp = project_path + model_path + param + '/' + model_name+ \
+                f'/{target}/{n[i].item()}_{n_pred[i]}/'
+            if not os.path.exists(temp): os.makedirs(temp)
+            image = tf.ToPILImage()(data[i])
+            image.save(temp+f'{j}{i}'+'.jpg')
 
         # label_correct += torch.sum(c_l_pred == c_l).item()
         n_correct += torch.sum(n_pred == n).item()
@@ -44,6 +52,7 @@ def confusion_matrix(model, data_loader, n_classes, ust_classes, device):
 
     # print(matrix)
     print(matrix_ust)
+    print('纵轴为real，横轴为pre')
     # for i in range(matrix.shape[0]):
     #     matrix[i] = matrix[i]/sum(matrix[i])*100
     for i in range(matrix_ust.shape[0]):
@@ -70,26 +79,32 @@ def heatmap2d(arr: np.ndarray):
 
 
 
-# 'photo', 'art_painting', 'cartoon'
-project_path = '/home/lyj/Files/project/pycharm/CV202009/'
-model_path = 'data/cache/222server/pacs_dg_ssr_25_25/caffenet/'
+# 'photo', 'art_painting', 'cartoon' 'sketch'
+if socket.gethostname() == "yujun":
+    project_path = '/home/lyj/Files/project/pycharm/CV202009/'
+else:
+    project_path = '/home/autolab/lyj/project/CV202009/'
+
+model_path = 'data/cache/222server/pacs_dg_ssr_25_3/caffenet/'
+model_name = 'art_painting_cartoon'
+print(f'model:{model_name}')
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
-num_usv_classes = 25
+num_usv_classes = 3
 model = model_fns['caffenet'](
     num_usv_classes=num_usv_classes,
     num_classes=-1)
 model = model.to(device)
 begin_i, begin_j = 0, 0
 #for param in os.listdir(project_path+model_path):
-for param in ['1.0_0.25']:
-    for target in ['art_painting_cartoon.pkl']:
-        for prob in [0.25]:
+for param in ['1.0_0.1']:
+    for target in ['photo', 'art_painting', 'cartoon', 'sketch']:
+        for prob in [0.33]:
             # torch.cuda.set_device(0)
-            model.load_state_dict(torch.load(project_path + model_path+param+'/'+target, map_location=device))
+            model.load_state_dict(torch.load(project_path + model_path+param+f'/{model_name}.pkl', map_location=device))
             args = Container()
             args.image_size = 222
-            test_paths, _, test_labels, _ = get_p_l('cartoon', dir=project_path + 'data/test/')
-            test_s_DS = RotTest(test_paths, test_labels, prob=prob, args=args)
+            test_paths, _, test_labels, _ = get_p_l(target, dir=project_path + 'data/test/')
+            test_s_DS = SSRTest(test_paths, test_labels, prob=prob, args=args)
             test_s_data_loader = test_DL_fn(test_s_DS, 128)
 
             # for i, (data, n, c_l) in enumerate(test_s_data_loader):
@@ -128,8 +143,9 @@ for param in ['1.0_0.25']:
                     plt.ylabel("Predict")
                     plt.title('Standard rotation')
                     plt.show()
-                print(param)
-                print(target)
-                print(prob)
+                print(f'param:{param}')
+                print(f'target domain:{target}')
+                print(f'origin image prob:{prob}')
+                print('-------------------------------------')
 wb.save("./confusion_m.xlsx")
 

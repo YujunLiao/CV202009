@@ -25,7 +25,7 @@ class SemanticSensitiveRot(BaseDataset):
 
     def __getitem__(self, index):
         img, label = super().__getitem__(index)
-        img, n = SemanticSensitiveRot.rotate(img, prob=self.prob)
+        img, n = SemanticSensitiveRot.rotate2(img, prob=self.prob)
         #img, n = SemanticSensitiveRot.deep_all(img, prob=self.prob)
         #img, n = Rotation.rotate(img, prob=self.prob)
         return to_t_tf_fn(img), n, label

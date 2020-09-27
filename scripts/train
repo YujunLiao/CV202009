@@ -7,7 +7,7 @@
 ssh -t tj "
 project_path=\$HOME/lyj/project/CV202009/
 script=\${project_path}scripts/remote/DG_SSR_caffe
-# script=\${project_path}scripts/remote/DG_R_caffe
+#script=\${project_path}scripts/remote/DG_R_caffe
 GPU=1
 
 echo \$(date)
