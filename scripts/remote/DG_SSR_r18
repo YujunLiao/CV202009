@@ -1,0 +1,44 @@
+# art_painting cartoon sketch photo 7 PACS 0.27h/30epoch
+# CALTECH LABELME PASCAL SUN 5 VLCS
+# art clipart product real_world 65 Office_Home
+# amazon dslr webcam 31 Office-31
+# mnist svhn 10
+# clipart infograph painting quickdraw real sketch 345 domainnet 3.6h/30epoch
+
+# DG resnet-rotation Office-Home:65
+# s_rotation_weight bias_whole_image t_rotation_weight  entropy
+# 0.4,0.1 0.4,0.3 0.4,0.5
+
+# 0.1,0.8 0.3,0.8 0.5,0.8 0.7,0.8 0.9,0.8
+# 0.1,0.6 0.3,0.6 0.5,0.6 0.7,0.6 0.9,0.6
+# 0.1,0.4 0.3,0.4 0.5,0.4 0.7,0.4 0.9,0.4
+# 0.1,0.2 0.3,0.2 0.5,0.2 0.7,0.2 0.9,0.2
+
+# 0,1 0.1,0.8 0.5,0.8 0.9,0.8
+# 0.1,0.6 0.5,0.6 0.9,0.6
+# 0.1,0.4 0.5,0.4 0.9,0.4
+# 0.1,0.2 0.5,0.2 0.9,0.2
+
+# -u 指 user 交互
+CUDA_VISIBLE_DEVICES=$1 \
+/home/giorgio/Files/pycharm_project/pytorch_interpreter/bin/python3.7 -u \
+/home/giorgio/Files/pycharm_project/CV/dgssr_trainer.py \
+--redirect_to_file origin \
+--parameters      0.1,0.4 0.3,0.4 0.5,0.4 0.7,0.4 0.9,0.4 0.1,0.6 0.3,0.6 0.5,0.6 0.7,0.6 0.9,0.6 \
+--domains art_painting cartoon sketch photo  \
+--targets    art_painting cartoon sketch photo       \
+--num_classes 7 \
+--repeat_times 3 \
+--network resnet18  --epochs 30 \
+--classify_only_original_img True    \
+--batch_size 128  --image_size 222 \
+--learning_rate 0.001 --val_size 0.1  \
+--train_all_param True   \
+--min_scale 0.8 --max_scale 1.0 --random_horiz_flip 0.5 --jitter 0.4 --tile_random_grayscale 0.1 \
+--max_num_s_img -1 \
+--experiment DG-ssr-ms-PACS-n-24out24 \
+--wandb
+
+
+
+

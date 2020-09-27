@@ -1,0 +1,7 @@
+*.ipynb
+*.pyc
+.idea
+data
+output
+*wandb
+
