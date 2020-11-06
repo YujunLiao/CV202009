@@ -23,6 +23,7 @@ class Container:
     def __int__(self):
         pass
 
+
 def confusion_matrix(model, data_loader, n_classes, ust_classes, device):
     # label_correct = 0
     n_correct = 0
@@ -76,8 +77,6 @@ def heatmap2d(arr: np.ndarray):
     plt.imshow(arr, cmap='viridis')
     plt.colorbar()
     plt.show()
-
-
 
 # 'photo', 'art_painting', 'cartoon' 'sketch'
 if socket.gethostname() == "yujun":
@@ -147,5 +146,5 @@ for param in ['1.0_0.1']:
                 print(f'target domain:{target}')
                 print(f'origin image prob:{prob}')
                 print('-------------------------------------')
-wb.save("./confusion_m.xlsx")
+# wb.save("./confusion_m.xlsx")
 

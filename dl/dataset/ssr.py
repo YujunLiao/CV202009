@@ -10,6 +10,8 @@ import torchvision.utils as vutils
 from PIL import Image
 
 
+
+
 def norm_img(img):
     img_t = to_t_tf_fn(img)
     img_t = norm_tf_fn(img_t)
@@ -25,10 +27,25 @@ class SemanticSensitiveRot(BaseDataset):
 
     def __getitem__(self, index):
         img, label = super().__getitem__(index)
-        img, n = SemanticSensitiveRot.rotate2(img, prob=self.prob)
+        img, n = SemanticSensitiveRot.original_rotate(img, prob=self.prob)
         #img, n = SemanticSensitiveRot.deep_all(img, prob=self.prob)
         #img, n = Rotation.rotate(img, prob=self.prob)
         return to_t_tf_fn(img), n, label
+
+    @staticmethod
+    def original_rotate(img, prob=float(0)):
+        """
+
+        :param img: <class 'PIL.Image'> image
+        :param prob: probability of original image
+        :return:<class 'PIL.Image'> rotated image,
+
+        """
+        p_ = (1-prob)/3
+        n = np.random.choice(np.arange(4), p=[prob, p_, p_, p_])
+        if n != 0:
+            img = img.transpose(n+1)
+        return img, n
 
     @staticmethod
     def rotate(img, prob=float(0)):
@@ -109,8 +126,8 @@ class SemanticSensitiveRot(BaseDataset):
             imgs[1] = imgs[1].transpose(local_rot + 2)
             imgs[2] = imgs[2].transpose(local_rot + 2)
 
-        for i in range(4):
-            imgs[i] = norm_img(imgs[i])
+        # for i in range(4):
+        #     imgs[i] = norm_img(imgs[i])
 
         img2 = Image.new('RGB', img.size)
         img2.paste(imgs[0], (0, 0))
@@ -279,7 +296,7 @@ class SSRTrain(SemanticSensitiveRot):
         img_t = to_t_tf_fn(img)
         # if n==0:
         #     img_t = norm_tf_fn(img_t)
-        #img_t = norm_tf_fn(img_t)
+        img_t = norm_tf_fn(img_t)
         return img_t, n, label
 
 
@@ -297,9 +314,5 @@ class SSRTest(SemanticSensitiveRot):
         img = test_tf_fn(self.args)(img)
         img_t = to_t_tf_fn(img)
         # img_t = norm_tf_fn(img_t)
-        return norm_tf_fn(img_t), n, label, img_t
-
-
-
-
-
+        # return norm_tf_fn(img_t), n, label, img_t
+        return norm_tf_fn(img_t), n, label

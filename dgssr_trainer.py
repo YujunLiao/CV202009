@@ -22,7 +22,6 @@ from torchvision import transforms as tf
 from dl.utils.mm import monitor_memory
 
 
-
 model_fns = {
     'caffenet': caffenet.caffenet,
     'resnet18': resnet.resnet18,

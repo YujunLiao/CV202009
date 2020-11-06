@@ -4,11 +4,11 @@
 
 # /bin/bash $HOME/Files/pycharm_project/CV/scripts/remote/DG_R_caffe 0
 # /bin/bash $HOME/Files/pycharm_project/CV/scripts/remote/DG_IR_caffe
-ssh -t tj "
+ssh -t pc1 "
 project_path=\$HOME/lyj/project/CV202009/
 script=\${project_path}scripts/remote/DG_SSR_caffe
 #script=\${project_path}scripts/remote/DG_R_caffe
-GPU=1
+GPU=0
 
 echo \$(date)
 echo "GPU \$GPU"

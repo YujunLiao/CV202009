@@ -3,7 +3,6 @@ from .utils.get_p_l import get_p_l
 from ..dataset.rotation import RotTrain, RotTest
 
 
-
 def get_DGR_data_loader(sources='', target='', data_dir='', val_size=float(0),
                         prob=float(0), batch_size=128, _max=-1, args=None):
     train_paths, val_paths, train_labels, val_labels = \

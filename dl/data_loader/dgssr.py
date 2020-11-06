@@ -5,6 +5,9 @@ from ..dataset.ssr import SSRTrain, SSRTest
 
 def get_DGSSR_data_loader(sources='', target='', data_dir='', val_size=float(0),
                           prob=float(0), batch_size=128, _max=-1, args=None):
+    # global global_usn
+    # global_usn = args.num_usv_classes
+
     train_paths, val_paths, train_labels, val_labels = \
         get_p_l(sources, dir=data_dir + 'train/', val_size=val_size)
     test_paths, _, test_labels, _ = get_p_l(target, dir=data_dir + 'test/')
