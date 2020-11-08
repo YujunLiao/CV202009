@@ -37,7 +37,7 @@ CUDA_VISIBLE_DEVICES=$1 \
 --train_all_param True   \
 --min_scale 0.8 --max_scale 1.0 --random_horiz_flip 0.5 --jitter 0.4 --tile_random_grayscale 0.1 \
 --max_num_s_img -1 \
---experiment 1106/pacs_dg_r \
+--experiment 1108/pacs_dg_r \
 # --wandb
 #--experiment DG-ssr-ms-domainnet-n-24out3-prelocal \
 #--wandb
