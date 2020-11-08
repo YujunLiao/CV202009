@@ -185,7 +185,7 @@ class Trainer:
 
 
     def train_epoch(self):
-
+        print('******************************')
         self.scheduler.step()
         lrs = self.scheduler.get_lr()
         criterion = nn.CrossEntropyLoss()
@@ -238,7 +238,7 @@ class Trainer:
                 print()
                 # pp(f'train_acc:s:{acc_s};u:{acc_u}')
                 # pp(f'train_loss:s:{s_loss.item()};u:{us_loss.item()}')
-                pp(f'train_acc:u:{acc_u}')
+                pp(f'*train_acc:u:{acc_u}')
                 pp(f'train_loss:u:{us_loss.item()}')
 
             # del loss, s_loss, us_loss, n_logit, c_l_logit
@@ -256,7 +256,7 @@ class Trainer:
 
             for phase, loader in self.test_us_loaders.items():
                 s_acc, us_acc = Trainer.test(self.model, loader, device=self.device)
-                pp(f'{phase}_acc:{us_acc}')
+                pp(f'*{phase}_acc:{us_acc}')
                 if self.args.wandb:
                     wandb.log({f'acc/{phase}': us_acc})
                 self.results[phase][self.cur_epoch] = us_acc
