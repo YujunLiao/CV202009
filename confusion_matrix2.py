@@ -1,10 +1,11 @@
 import os, sys
+import random
 import socket
 import torchvision.transforms as tf
 import torch
 from dgssr_trainer import model_fns, Trainer
 from dl.data_loader.utils.get_p_l import get_p_l
-from dl.dataset.ssr import SSRTest2
+from dl.dataset.ssr import SSRTest2, SSRTest
 from dl.dataset.rotation import RotTest
 from dl.data_loader.utils.ds2dl import train_DL_fn, test_DL_fn
 import numpy as np
@@ -14,6 +15,11 @@ import math
 import numpy as np; np.random.seed(0)
 import seaborn as sns; sns.set()
 import matplotlib.pylab as plt
+
+manualSeed = 0
+np.random.seed(manualSeed)
+random.seed(manualSeed)
+torch.manual_seed(manualSeed)
 
 class_name = ['dog', 'elephant', 'giraffe', 'guitar', 'horse', 'house', 'person']
 
@@ -77,8 +83,8 @@ def confusion_matrix(model, data_loader, n_classes, ust_classes, device):
         for i in range(matrix_per_class.shape[0]):
             matrix_per_class[i] = matrix_per_class[i] / sum(matrix_per_class[i]) * 100
 
-        print(matrix_per_class)
-        print('纵轴为real，横轴为pre')
+        # print(matrix_per_class)
+        # print('纵轴为real，横轴为pre')
         print('********************************************')
         matrix_per_class = matrix_per_class.transpose()
     # matrix_ust = matrix_ust.transpose()
@@ -105,7 +111,7 @@ if socket.gethostname() == "yujun":
 else:
     project_path = '/media/autolab/1506ebe6-2e20-47c1-a0f6-9022bc6c122a/lyj/project/CV202009/'
 
-model_path = 'data/cache/222server/1106/pacs_dg_r/caffenet/'
+model_path = 'data/cache/222server/1108_5/pacs_dg_r/caffenet/'
 model_name = 'art_painting_cartoon'
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 num_usv_classes = 4
@@ -120,7 +126,8 @@ for param in ['1.0_0.25']:
     print('redirect to ', output_file)
     # sys.stdout = open(output_file, 'w')
     print(f'model:{model_name}')
-    for target in ['photo', 'art_painting', 'cartoon', 'sketch']:
+    # for target in ['photo', 'art_painting', 'cartoon', 'sketch']:
+    for target in ['cartoon']:
         for prob in [0.25]:
             print('//////////////////////////////////////')
             # torch.cuda.set_device(0)
@@ -129,12 +136,15 @@ for param in ['1.0_0.25']:
             args.image_size = 222
             test_paths, _, test_labels, _ = get_p_l(target, dir=project_path + 'data/test/')
             test_s_DS = SSRTest2(test_paths, test_labels, prob=prob, args=args)
+            # test_s_DS = SSRTest(test_paths, test_labels, prob=prob, args=args)
             test_s_data_loader = test_DL_fn(test_s_DS, 128)
 
             # for i, (data, n, c_l) in enumerate(test_s_data_loader):
             #     data, n, c_l = data.to(device), n.to(device), c_l.to(device)
             model.eval()
             with torch.no_grad():
+
+                # print(Trainer.test(model, test_s_data_loader, device))
                 matrix, matrix_ust = confusion_matrix(model, test_s_data_loader, 7, num_usv_classes, device=device)
 
                 ## write to excel

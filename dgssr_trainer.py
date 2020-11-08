@@ -1,5 +1,8 @@
+import random
+import numpy as np
 import copy
 import os
+
 import sys
 from os.path import dirname
 from time import time, strftime, localtime
@@ -20,6 +23,13 @@ from dl.model import caffenet, resnet, mnist
 from dl.utils.result import Result
 from torchvision import transforms as tf
 from dl.utils.mm import monitor_memory
+
+manualSeed = 0
+np.random.seed(manualSeed)
+random.seed(manualSeed)
+torch.manual_seed(manualSeed)
+
+
 
 
 model_fns = {
@@ -238,7 +248,7 @@ class Trainer:
                 print()
                 # pp(f'train_acc:s:{acc_s};u:{acc_u}')
                 # pp(f'train_loss:s:{s_loss.item()};u:{us_loss.item()}')
-                pp(f'*train_acc:u:{acc_u}')
+                pp(f'@{acc_u}:train_acc:u')
                 pp(f'train_loss:u:{us_loss.item()}')
 
             # del loss, s_loss, us_loss, n_logit, c_l_logit
@@ -256,10 +266,14 @@ class Trainer:
 
             for phase, loader in self.test_us_loaders.items():
                 s_acc, us_acc = Trainer.test(self.model, loader, device=self.device)
-                pp(f'*{phase}_acc:{us_acc}')
+                pp(f'${us_acc}:{phase}_acc')
                 if self.args.wandb:
                     wandb.log({f'acc/{phase}': us_acc})
                 self.results[phase][self.cur_epoch] = us_acc
+        if self.cur_epoch == 1:
+            print(Trainer.test(self.model, self.test_us_data_loader, 'cuda'))
+
+
 
     @staticmethod
     def test(model, loader, device='cpu'):
@@ -296,7 +310,11 @@ def iterate_args(args):
 def main():
     # This flag allows you to enable the inbuilt cudnn auto-tuner to
     # find the best algorithm to use for your hardware.
-    torch.backends.cudnn.benchmark = True
+    # torch.backends.cudnn.benchmark = True
+
+    # torch.backends.cudnn.deterministic = True
+    # torch.backends.cudnn.benchmark = False
+
     args = get_args()
     for args in iterate_args(args):
         output_dir = f'{args.output_dir}/{socket.gethostname()}/{args.experiment}/{args.network}/' + \
@@ -332,7 +350,50 @@ def main():
                          '_'.join([str(_) for _ in args.params])
         if not os.path.exists(save_model_dir): os.makedirs(save_model_dir)
 
+        ## test
+        from dl.dataset.ssr import SSRTest2, SSRTest
+        from dl.data_loader.utils.get_p_l import get_p_l
+        from dl.data_loader.utils.ds2dl import train_DL_fn, test_DL_fn
+        from dl.model.caffenet import AlexNetCaffe
+
+        test_paths, _, test_labels, _ = get_p_l('cartoon',
+                                                dir='/media/autolab/1506ebe6-2e20-47c1-a0f6-9022bc6c122a/lyj/project/CV202009/data/test/')
+        test_s_DS = SSRTest(test_paths, test_labels, prob=0.25, args=args)
+        test_s_data_loader = test_DL_fn(test_s_DS, 128)
+        print('1', Trainer.test(model, test_s_data_loader, 'cuda'))
+        print('1', Trainer.test(model, data_loaders[4], 'cuda'))
+        print('1', Trainer.test(model, data_loaders[4], 'cuda'))
+        print('1', Trainer.test(model, data_loaders[4], 'cuda'))
+
+
         torch.save(model.state_dict(), save_model_dir+f'/{args.source[0]}_{args.target}.pkl')
+
+        model.load_state_dict(torch.load(save_model_dir+f'/{args.source[0]}_{args.target}.pkl'))
+        print('3', Trainer.test(model, data_loaders[4], 'cuda'))
+        print('3', Trainer.test(model, test_s_data_loader, 'cuda'))
+
+
+        new_model = AlexNetCaffe(
+            num_usv_classes=args.num_usv_classes,
+            num_classes=args.num_classes).to('cuda')
+        # new_model.load_state_dict(torch.load(save_model_dir + f'/{args.source[0]}_{args.target}.pkl'))
+        new_model.load_state_dict(model.state_dict())
+
+        new_model.eval()
+        with torch.no_grad():
+            print('4', Trainer.test(new_model, test_s_data_loader, 'cuda'))
+            print('4', Trainer.test(new_model, test_s_data_loader, 'cuda'))
+            print('4', Trainer.test(model, test_s_data_loader, 'cuda'))
+            print('4', Trainer.test(model, data_loaders[4], 'cuda'))
+            print('4', Trainer.test(model, data_loaders[4], 'cuda'))
+            print('4', Trainer.test(model, data_loaders[4], 'cuda'))
+
+
+
+
+
+
+
         # wandb.save(args.data_dir+'/cache/model.pkl')
         if args.wandb:
             wandb.join()
