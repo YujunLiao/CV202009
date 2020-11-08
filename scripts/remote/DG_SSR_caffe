@@ -22,7 +22,7 @@
 # -u 指 user 交互
 CUDA_VISIBLE_DEVICES=$1 \
 /home/autolab/lyj/py_env1/bin/python3.7 -u \
-/home/autolab/lyj/project/CV202009/dgssr_trainer.py \
+/media/autolab/1506ebe6-2e20-47c1-a0f6-9022bc6c122a/lyj/project/CV202009/dgssr_trainer.py \
 --redirect_to_file null \
 --parameters  1,0.25  \
 --domains  art_painting cartoon sketch photo   \
