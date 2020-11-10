@@ -49,6 +49,8 @@ def get_args():
     parser.add_argument("--target")
     parser.add_argument("--num_classes", "-c", type=int, default=7)
     parser.add_argument("--num_usv_classes", type=int, default=4)
+    parser.add_argument('--transformation_version', type=str,
+                        default='')
 
     parser.add_argument("--domains", nargs='+',
                         default=['sketch'])
@@ -310,7 +312,7 @@ def iterate_args(args):
 def main():
     # This flag allows you to enable the inbuilt cudnn auto-tuner to
     # find the best algorithm to use for your hardware.
-    # torch.backends.cudnn.benchmark = True
+    torch.backends.cudnn.benchmark = True
 
     # torch.backends.cudnn.deterministic = True
     # torch.backends.cudnn.benchmark = False
@@ -350,49 +352,7 @@ def main():
                          '_'.join([str(_) for _ in args.params])
         if not os.path.exists(save_model_dir): os.makedirs(save_model_dir)
 
-        ## test
-        from dl.dataset.ssr import SSRTest2, SSRTest
-        from dl.data_loader.utils.get_p_l import get_p_l
-        from dl.data_loader.utils.ds2dl import train_DL_fn, test_DL_fn
-        from dl.model.caffenet import AlexNetCaffe
-
-        test_paths, _, test_labels, _ = get_p_l('cartoon',
-                                                dir='/media/autolab/1506ebe6-2e20-47c1-a0f6-9022bc6c122a/lyj/project/CV202009/data/test/')
-        test_s_DS = SSRTest(test_paths, test_labels, prob=0.25, args=args)
-        test_s_data_loader = test_DL_fn(test_s_DS, 128)
-        print('1', Trainer.test(model, test_s_data_loader, 'cuda'))
-        print('1', Trainer.test(model, data_loaders[4], 'cuda'))
-        print('1', Trainer.test(model, data_loaders[4], 'cuda'))
-        print('1', Trainer.test(model, data_loaders[4], 'cuda'))
-
-
         torch.save(model.state_dict(), save_model_dir+f'/{args.source[0]}_{args.target}.pkl')
-
-        model.load_state_dict(torch.load(save_model_dir+f'/{args.source[0]}_{args.target}.pkl'))
-        print('3', Trainer.test(model, data_loaders[4], 'cuda'))
-        print('3', Trainer.test(model, test_s_data_loader, 'cuda'))
-
-
-        new_model = AlexNetCaffe(
-            num_usv_classes=args.num_usv_classes,
-            num_classes=args.num_classes).to('cuda')
-        # new_model.load_state_dict(torch.load(save_model_dir + f'/{args.source[0]}_{args.target}.pkl'))
-        new_model.load_state_dict(model.state_dict())
-
-        new_model.eval()
-        with torch.no_grad():
-            print('4', Trainer.test(new_model, test_s_data_loader, 'cuda'))
-            print('4', Trainer.test(new_model, test_s_data_loader, 'cuda'))
-            print('4', Trainer.test(model, test_s_data_loader, 'cuda'))
-            print('4', Trainer.test(model, data_loaders[4], 'cuda'))
-            print('4', Trainer.test(model, data_loaders[4], 'cuda'))
-            print('4', Trainer.test(model, data_loaders[4], 'cuda'))
-
-
-
-
-
-
 
         # wandb.save(args.data_dir+'/cache/model.pkl')
         if args.wandb:

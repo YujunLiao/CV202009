@@ -12,7 +12,7 @@ import numpy as np
 # /home/giorgio/Files/pycharm_project/pytorch_interpreter/bin/python3.7 /home/giorgio/Files/pycharm_project/CV/scripts/local/confusion_matrix.py
 from openpyxl import Workbook
 import math
-import numpy as np; np.random.seed(0)
+import numpy as np
 import seaborn as sns; sns.set()
 import matplotlib.pylab as plt
 
@@ -53,7 +53,7 @@ def confusion_matrix(model, data_loader, n_classes, ust_classes, device):
         for (class_label, pred, real) in zip(c_l, n_pred, n):
             matrix_ust[class_label][real][pred] += 1
 
-        # ## divide the resulting images into different folders
+        ## divide the resulting images into different folders
         # for i in range(len(n_pred)):
         #     temp = project_path + model_path + param + '/' + model_name+ \
         #         f'/{target}/{n[i].item()}_{n_pred[i]}/'
@@ -83,10 +83,10 @@ def confusion_matrix(model, data_loader, n_classes, ust_classes, device):
         for i in range(matrix_per_class.shape[0]):
             matrix_per_class[i] = matrix_per_class[i] / sum(matrix_per_class[i]) * 100
 
-        # print(matrix_per_class)
-        # print('纵轴为real，横轴为pre')
+        print(matrix_per_class)
+        print('纵轴为real，横轴为pre')
         print('********************************************')
-        matrix_per_class = matrix_per_class.transpose()
+        # matrix_per_class = matrix_per_class.transpose()
     # matrix_ust = matrix_ust.transpose()
     # matrix = matrix.transpose()
     # return matrix, matrix_ust
@@ -111,10 +111,16 @@ if socket.gethostname() == "yujun":
 else:
     project_path = '/media/autolab/1506ebe6-2e20-47c1-a0f6-9022bc6c122a/lyj/project/CV202009/'
 
-model_path = 'data/cache/222server/1108_5/pacs_dg_r/caffenet/'
+## model path
+model_path = 'data/cache/222server/1108_random_horiz_0/pacs_dg_r/caffenet/'
 model_name = 'art_painting_cartoon'
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
+args = Container()
+args.image_size = 222
+# original_rotate lr_25_25 lr_25_5 lr_25_4 lr_25_3
+args.transformation_version = 'lr_25_4'
 num_usv_classes = 4
+
 model = model_fns['caffenet'](
     num_usv_classes=num_usv_classes,
     num_classes=-1)
@@ -122,18 +128,21 @@ model = model.to(device)
 begin_i, begin_j = 0, 0
 #for param in os.listdir(project_path+model_path):
 for param in ['1.0_0.25']:
+    ## redirect output
     output_file = f'{project_path}{model_path}{param}/{model_name}.result'
     print('redirect to ', output_file)
     # sys.stdout = open(output_file, 'w')
+
     print(f'model:{model_name}')
-    # for target in ['photo', 'art_painting', 'cartoon', 'sketch']:
-    for target in ['cartoon']:
+    for target in ['photo', 'art_painting', 'cartoon', 'sketch']:
+    # for target in ['cartoon']:
         for prob in [0.25]:
             print('//////////////////////////////////////')
             # torch.cuda.set_device(0)
             model.load_state_dict(torch.load(project_path + model_path+param+f'/{model_name}.pkl', map_location=device))
-            args = Container()
-            args.image_size = 222
+
+
+            ## choose dataset
             test_paths, _, test_labels, _ = get_p_l(target, dir=project_path + 'data/test/')
             test_s_DS = SSRTest2(test_paths, test_labels, prob=prob, args=args)
             # test_s_DS = SSRTest(test_paths, test_labels, prob=prob, args=args)
@@ -148,17 +157,18 @@ for param in ['1.0_0.25']:
                 matrix, matrix_ust = confusion_matrix(model, test_s_data_loader, 7, num_usv_classes, device=device)
 
                 ## write to excel
-                #w(ws, begin_i, begin_j, param+target+str(prob))
-                #begin_i += 1
-                #w_matrix(ws, begin_i, begin_j, matrix)
-                #w_matrix(ws, begin_i, begin_j+matrix.shape[0]+3, matrix_ust)
-                #begin_i += matrix.shape[0]+3
-                # for i in range(matrix.shape[0]):
-                #     for j in range(matrix.shape[1]):
-                #         w(ws, i, j, matrix[i][j])
-                # for i in range(matrix_ust.shape[0]):
-                #     for j in range(matrix_ust.shape[1]):
-                #         w(ws, i, j+matrix.shape[0]+3, matrix[i][j])
+                w(ws, begin_i, begin_j, param+target+str(prob))
+                for m in matrix_ust:
+                    begin_i += 1
+                    w_matrix(ws, begin_i, begin_j, m)
+                    # w_matrix(ws, begin_i, begin_j+m.shape[0]+3, matrix_ust)
+                    begin_i += m.shape[0]+1
+                    # for i in range(m.shape[0]):
+                    #     for j in range(m.shape[1]):
+                    #         w(ws, i, j, m[i][j])
+                    # for i in range(matrix_ust.shape[0]):
+                    #     for j in range(matrix_ust.shape[1]):
+                    #         w(ws, i, j+matrix.shape[0]+3, matrix[i][j])
 
                 ## visulization
                 # if prob == 1:
@@ -182,5 +192,6 @@ for param in ['1.0_0.25']:
                 print(f'target domain:{target}')
                 print(f'origin image prob:{prob}')
                 print('-------------------------------------')
-# wb.save("./confusion_m.xlsx")
+print(f'confusion_{project_path}{model_path}{param}/{model_name}.xlsx')
+wb.save(f'{project_path}{model_path}{param}/{model_name}_confusion.xlsx')
 

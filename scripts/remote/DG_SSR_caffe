@@ -19,6 +19,7 @@
 # 4 0,1 0.3,0.4 0.5,0.4
 # 3 0,1 0.3,0.2 0.5,0.4
 
+# original_rotate lr_25_25 lr_25_5 lr_25_4 lr_25_3
 # -u 指 user 交互
 CUDA_VISIBLE_DEVICES=$1 \
 /home/autolab/lyj/py_env1/bin/python3.7 -u \
@@ -28,16 +29,16 @@ CUDA_VISIBLE_DEVICES=$1 \
 --domains  art_painting cartoon sketch photo   \
 --targets      cartoon  \
 --num_classes -1 \
---num_usv_classes 4 \
+--num_usv_classes 4 --transformation_version  lr_25_4 \
 --repeat_times 1 \
---network caffenet  --epochs 2 \
+--network caffenet  --epochs 30 \
 --classify_only_original_img True    \
 --batch_size 128  --image_size 222 \
 --learning_rate 0.001 --val_size 0.1  \
 --train_all_param True   \
---min_scale 0.8 --max_scale 1.0 --random_horiz_flip 0.5 --jitter 0.4 --tile_random_grayscale 0.1 \
+--min_scale 0.8 --max_scale 1.0 --random_horiz_flip 0 --jitter 0.4 --tile_random_grayscale 0.1 \
 --max_num_s_img -1 \
---experiment 1108_5/pacs_dg_r \
+--experiment 1110/pacs_dg_ssr_25_25 \
 # --wandb
 # --experiment DG-ssr-ms-domainnet-n-24out3-prelocal \
 # --wandb

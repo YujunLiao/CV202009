@@ -18,16 +18,25 @@ def norm_img(img):
     return to_i_tf_fn(img_t)
 
 
-
 class SemanticSensitiveRot(BaseDataset):
     def __init__(self, paths='', labels='', prob=float(0),
-                 _max=-1):
+                 _max=-1, transformation_version=''):
         super().__init__(paths, labels, _max)
         self.prob = prob
+        self.trans_v = transformation_version
+        self.transformations = {
+            'original_rotate': self.original_rotate,
+            'lr_25_25': self.lr_25_25,
+            'lr_25_5': self.lr_25_5,
+            'lr_25_4': self.lr_25_4,
+            'lr_25_3': self.lr_25_3,
+        }
 
     def __getitem__(self, index):
         img, label = super().__getitem__(index)
-        img, n = SemanticSensitiveRot.original_rotate(img, prob=self.prob)
+        ## choose rotation version
+        # img, n = SemanticSensitiveRot.lr_25_4(img, prob=self.prob)
+        img, n = self.transformations[self.trans_v](img, prob=self.prob)
         #img, n = SemanticSensitiveRot.deep_all(img, prob=self.prob)
         #img, n = Rotation.rotate(img, prob=self.prob)
         return to_t_tf_fn(img), n, label
@@ -48,8 +57,8 @@ class SemanticSensitiveRot(BaseDataset):
         return img, n
 
     @staticmethod
-    def rotate(img, prob=float(0)):
-        """24 kinds of rotation out 24
+    def lr_25_25(img, prob=float(0)):
+        """
 
         :param img: <class 'PIL.Image'> image
         :param prob: probability of original image
@@ -93,8 +102,8 @@ class SemanticSensitiveRot(BaseDataset):
         return img2, n
 
     @staticmethod
-    def rotate2(img, prob=float(0)):
-        """24 kinds of rotation out 2
+    def lr_25_3(img, prob=float(0)):
+        """
 
         :param img: <class 'PIL.Image'> image
         :param prob: probability of original image
@@ -138,8 +147,8 @@ class SemanticSensitiveRot(BaseDataset):
         return img2, patches+1
 
     @staticmethod
-    def rotate3(img, prob=float(0)):
-        """24 kinds of rotation out 3
+    def lr_25_4(img, prob=float(0)):
+        """
 
         :param img: <class 'PIL.Image'> image
         :param prob: probability of original image
@@ -183,8 +192,8 @@ class SemanticSensitiveRot(BaseDataset):
         return img2, local_rot+1
 
     @staticmethod
-    def rotate4(img, prob=float(0)):
-        """24 kinds of rotation out 4
+    def lr_25_5(img, prob=float(0)):
+        """
 
         :param img: <class 'PIL.Image'> image
         :param prob: probability of original image
@@ -228,8 +237,8 @@ class SemanticSensitiveRot(BaseDataset):
         return img2, global_rot+1
 
     @staticmethod
-    def rotate_slelct_3(img, prob=float(0)):
-        """24 kinds of rotation out 3
+    def lr_nearest_3(img, prob=float(0)):
+        """
 
         :param img: <class 'PIL.Image'> image
         :param prob: probability of original image
@@ -285,7 +294,7 @@ class SSRTrain(SemanticSensitiveRot):
 
     """
     def __init__(self, paths='', labels='', prob=float(0), _max=-1, args=None):
-        super().__init__(paths, labels, prob, _max)
+        super().__init__(paths, labels, prob, _max, args.transformation_version)
         self.args = args
 
     def __getitem__(self, index):
@@ -305,7 +314,7 @@ class SSRTest(SemanticSensitiveRot):
 
     """
     def __init__(self, paths='', labels='', prob=float(0), _max=-1, args=None):
-        super().__init__(paths, labels, prob, _max)
+        super().__init__(paths, labels, prob, _max, args.transformation_version)
         self.args = args
 
     def __getitem__(self, index):
@@ -321,7 +330,7 @@ class SSRTest2(SemanticSensitiveRot):
 
     """
     def __init__(self, paths='', labels='', prob=float(0), _max=-1, args=None):
-        super().__init__(paths, labels, prob, _max)
+        super().__init__(paths, labels, prob, _max, args.transformation_version)
         self.args = args
 
     def __getitem__(self, index):
