@@ -15,6 +15,7 @@ import math
 import numpy as np
 import seaborn as sns; sns.set()
 import matplotlib.pylab as plt
+import pdb
 
 manualSeed = 0
 np.random.seed(manualSeed)
@@ -32,6 +33,23 @@ class Container:
         pass
 
 
+def means_logit_statistics(model, data_loader, n_classes, ust_classes, device):
+    ust_means_logit = np.zeros((ust_classes, ust_classes))
+    for j, (norm_data, n, c_l, data) in enumerate(data_loader):
+        norm_data, n, c_l = norm_data.to(device), n.to(device), c_l.to(device)
+        n_logit, c_l_logit = model(norm_data)
+        for i in range(len(n)):
+            for k in range(ust_classes):
+                ust_means_logit[n[i]][k] += n_logit[i][k]
+    # for k in range(ust_classes):
+    #     ust_means_logit[k] = ust_means_logit[k]/sum(ust_means_logit[k])
+    m = torch.nn.Softmax(dim=1)
+
+    print(m(torch.Tensor(ust_means_logit)))
+
+
+
+
 def confusion_matrix(model, data_loader, n_classes, ust_classes, device):
     # label_correct = 0
     n_correct = 0
@@ -44,6 +62,7 @@ def confusion_matrix(model, data_loader, n_classes, ust_classes, device):
         norm_data, n, c_l = norm_data.to(device), n.to(device), c_l.to(device)
         n_logit, c_l_logit = model(norm_data)
         # _, c_l_pred = c_l_logit.max(dim=1)
+        # pdb.set_trace()
         _, n_pred = n_logit.max(dim=1)
         # for (pred, real) in zip(c_l_pred, c_l):
         #     matrix[real][pred] += 1
@@ -118,7 +137,7 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 args = Container()
 args.image_size = 222
 # original_rotate lr_25_25 lr_25_5 lr_25_4 lr_25_3
-args.transformation_version = 'lr_25_4'
+args.transformation_version = 'original_rotate'
 num_usv_classes = 4
 
 model = model_fns['caffenet'](
@@ -134,8 +153,8 @@ for param in ['1.0_0.25']:
     # sys.stdout = open(output_file, 'w')
 
     print(f'model:{model_name}')
-    for target in ['photo', 'art_painting', 'cartoon', 'sketch']:
-    # for target in ['cartoon']:
+    # for target in ['photo', 'art_painting', 'cartoon', 'sketch']:
+    for target in ['photo']:
         for prob in [0.25]:
             print('//////////////////////////////////////')
             # torch.cuda.set_device(0)
@@ -152,7 +171,12 @@ for param in ['1.0_0.25']:
             #     data, n, c_l = data.to(device), n.to(device), c_l.to(device)
             model.eval()
             with torch.no_grad():
+                # means logit statistics
+                means_logit_statistics(model, test_s_data_loader, 7, num_usv_classes, device=device)
 
+
+
+                ##
                 # print(Trainer.test(model, test_s_data_loader, device))
                 matrix, matrix_ust = confusion_matrix(model, test_s_data_loader, 7, num_usv_classes, device=device)
 

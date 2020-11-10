@@ -10,8 +10,6 @@ import torchvision.utils as vutils
 from PIL import Image
 
 
-
-
 def norm_img(img):
     img_t = to_t_tf_fn(img)
     img_t = norm_tf_fn(img_t)
@@ -34,7 +32,6 @@ class SemanticSensitiveRot(BaseDataset):
 
     def __getitem__(self, index):
         img, label = super().__getitem__(index)
-        ## choose rotation version
         # img, n = SemanticSensitiveRot.lr_25_4(img, prob=self.prob)
         img, n = self.transformations[self.trans_v](img, prob=self.prob)
         #img, n = SemanticSensitiveRot.deep_all(img, prob=self.prob)
