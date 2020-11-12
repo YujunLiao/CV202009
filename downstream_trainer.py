@@ -76,6 +76,7 @@ def get_args():
     parser.add_argument("--output_dir", default=f'{dirname(__file__)}/output/')
     parser.add_argument("--redirect_to_file", default='null')
     parser.add_argument("--experiment", default='DG_ssr_PACS')
+    parser.add_argument("--load_model", default=None)
     parser.add_argument("--wandb", default=False, action='store_true')
 
     parser.add_argument("--classify_only_original_img", type=bool, default=True)
@@ -214,24 +215,28 @@ class Trainer:
             self.optimizer.zero_grad()
 
             n_logit, c_l_logit = self.model(data)  # , lambda_val=lambda_val)
-            us_loss = criterion(n_logit, n)
-            # s_loss = criterion(c_l_logit[n == 0], c_l[n == 0])
-            s_loss = torch.tensor(-1)
+            # us_loss = criterion(n_logit, n)
+            ## temporary used
+            c_l_logit = n_logit
+            s_loss = criterion(c_l_logit[n == 0], c_l[n == 0])
+            # s_loss = torch.tensor(-1)
 
 
-            # _, c_l_pred = c_l_logit.max(dim=1)
-            _, n_pred = n_logit.max(dim=1)
+            _, c_l_pred = c_l_logit.max(dim=1)
+            # _, n_pred = n_logit.max(dim=1)
             # _, domain_pred = domain_logit.max(dim=1)
             # loss = s_loss + us_loss * self.args.usvt_weight
-            loss = us_loss * self.args.usvt_weight
+            # loss = us_loss * self.args.usvt_weight
+            loss = s_loss
 
             loss.backward()
             self.optimizer.step()
 
             # record and print
-            # acc_s = torch.sum(c_l_pred == c_l).item() / data.shape[0]
-            acc_s = -1
-            acc_u = torch.sum(n_pred == n).item() / data.shape[0]
+            acc_s = torch.sum(c_l_pred == c_l).item() / data.shape[0]
+            # acc_s = -1
+            # acc_u = torch.sum(n_pred == n).item() / data.shape[0]
+            acc_u = -1
             if i == 0:
                 col_n = ceil(len(self.train_data_loader) / self.collect_per_batch)
                 print(f'epoch:{self.cur_epoch}/{self.args.epochs};bs:{data.shape[0]};'
@@ -243,15 +248,15 @@ class Trainer:
                     wandb.log({'acc/train/sv_task': acc_s,
                                 'acc/train/usv_task': acc_u,
                                 'loss/train/class': s_loss.item(),
-                                'loss/train/usv_task': us_loss.item(),
+                                # 'loss/train/usv_task': us_loss.item(),
                             'loss/train/sum': loss.item()})
 
             if i == len(self.train_data_loader) - 1:
                 print()
-                # pp(f'train_acc:s:{acc_s};u:{acc_u}')
+                pp(f'@{acc_s}:train_acc:s;{acc_u}:u')
                 # pp(f'train_loss:s:{s_loss.item()};u:{us_loss.item()}')
-                pp(f'@{acc_u}:train_acc:u')
-                pp(f'train_loss:u:{us_loss.item()}')
+                # pp(f'@{acc_u}:train_acc:u')
+                # pp(f'train_loss:u:{us_loss.item()}')
 
             # del loss, s_loss, us_loss, n_logit, c_l_logit
             torch.cuda.empty_cache()
@@ -259,19 +264,19 @@ class Trainer:
         # eval
         self.model.eval()
         with torch.no_grad():
-            # for phase, loader in self.test_s_loaders.items():
-            #     s_acc, us_acc = Trainer.test(self.model, loader, device=self.device)
-            #     pp(f'{phase}_acc:{s_acc}')
-            #     if self.args.wandb:
-            #         wandb.log({f'acc/{phase}': s_acc})
-            #     self.results[phase][self.cur_epoch] = s_acc
-
-            for phase, loader in self.test_us_loaders.items():
+            for phase, loader in self.test_s_loaders.items():
                 s_acc, us_acc = Trainer.test(self.model, loader, device=self.device)
-                pp(f'${us_acc}:{phase}_acc')
+                pp(f'${s_acc}:{phase}_acc')
                 if self.args.wandb:
-                    wandb.log({f'acc/{phase}': us_acc})
-                self.results[phase][self.cur_epoch] = us_acc
+                    wandb.log({f'acc/{phase}': s_acc})
+                self.results[phase][self.cur_epoch] = s_acc
+
+            # for phase, loader in self.test_us_loaders.items():
+            #     s_acc, us_acc = Trainer.test(self.model, loader, device=self.device)
+            #     pp(f'${us_acc}:{phase}_acc')
+            #     if self.args.wandb:
+            #         wandb.log({f'acc/{phase}': us_acc})
+            #     self.results[phase][self.cur_epoch] = us_acc
 
 
 
@@ -283,10 +288,12 @@ class Trainer:
         for _, (data, n, c_l) in enumerate(loader):
             data, n, c_l = data.to(device), n.to(device), c_l.to(device)
             n_logit, c_l_logit = model(data)
-            # _, c_l_pred = c_l_logit.max(dim=1)
-            _, n_pred = n_logit.max(dim=1)
-            # label_correct += torch.sum(c_l_pred == c_l).item()
-            n_correct += torch.sum(n_pred == n).item()
+            ## temporary used
+            c_l_logit = n_logit
+            _, c_l_pred = c_l_logit.max(dim=1)
+            # _, n_pred = n_logit.max(dim=1)
+            label_correct += torch.sum(c_l_pred == c_l).item()
+            # n_correct += torch.sum(n_pred == n).item()
         return float(label_correct)/total, float(n_correct)/total
 
 
@@ -327,6 +334,18 @@ def main():
         model = model_fns[args.network](
             num_usv_classes=args.num_usv_classes,
             num_classes=args.num_classes)
+        if args.load_model != None:
+            print(f"load model data/cache/222server/{args.load_model}")
+            state_dict = torch.load(f'{os.path.dirname(__file__)}/'
+                                    f'data/cache/222server/{args.load_model}.pkl')
+            del state_dict["classifier.fc6.weight"]
+            del state_dict["classifier.fc6.bias"]
+            del state_dict["classifier.fc7.weight"]
+            del state_dict["classifier.fc7.bias"]
+            del state_dict["usv_classifier.weight"]
+            del state_dict["usv_classifier.bias"]
+            model.load_state_dict(state_dict, strict=False)
+
         # monitor_memory()
 
         if args.wandb:

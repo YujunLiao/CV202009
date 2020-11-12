@@ -35,17 +35,20 @@ class Container:
 
 def means_logit_statistics(model, data_loader, n_classes, ust_classes, device):
     ust_means_logit = np.zeros((ust_classes, ust_classes))
+    m = torch.nn.Softmax(dim=1)
     for j, (norm_data, n, c_l, data) in enumerate(data_loader):
         norm_data, n, c_l = norm_data.to(device), n.to(device), c_l.to(device)
         n_logit, c_l_logit = model(norm_data)
+        n_logit = m(n_logit)
         for i in range(len(n)):
+
             for k in range(ust_classes):
                 ust_means_logit[n[i]][k] += n_logit[i][k]
-    # for k in range(ust_classes):
-    #     ust_means_logit[k] = ust_means_logit[k]/sum(ust_means_logit[k])
-    m = torch.nn.Softmax(dim=1)
+    for k in range(ust_classes):
+        ust_means_logit[k] = ust_means_logit[k]/sum(ust_means_logit[k])
 
-    print(m(torch.Tensor(ust_means_logit)))
+    print(ust_means_logit)
+    # print(m(torch.Tensor(ust_means_logit)))
 
 
 
@@ -56,7 +59,7 @@ def confusion_matrix(model, data_loader, n_classes, ust_classes, device):
     total = len(data_loader.dataset)
     # matrix = np.zeros((n_classes, n_classes))
     # matrix_ust = np.zeros((ust_classes, ust_classes))
-    matrix_ust = [np.zeros((ust_classes, ust_classes)) for _ in range(n_classes)]
+    matrix_ust = np.zeros((n_classes, ust_classes, ust_classes))
 
     for j, (norm_data, n, c_l, data) in enumerate(data_loader):
         norm_data, n, c_l = norm_data.to(device), n.to(device), c_l.to(device)
@@ -85,6 +88,15 @@ def confusion_matrix(model, data_loader, n_classes, ust_classes, device):
         n_correct += torch.sum(n_pred == n).item()
     # print(float(label_correct) / total, float(n_correct) / total)
     print(float(n_correct) / total, "all classes precision")
+    temp = matrix_ust.sum(axis=0)
+    print('**************************')
+    print(temp)
+    for i in range(ust_classes):
+        temp[i] /= sum(temp[i])
+    print(temp)
+    print('**************************')
+
+
 
     # for i in range(matrix.shape[0]):
     #     matrix[i] = matrix[i]/sum(matrix[i])*100
@@ -131,13 +143,16 @@ else:
     project_path = '/media/autolab/1506ebe6-2e20-47c1-a0f6-9022bc6c122a/lyj/project/CV202009/'
 
 ## model path
-model_path = 'data/cache/222server/1108_random_horiz_0/pacs_dg_r/caffenet/'
+# model_path = 'data/cache/222server/1110/pacs_dg_ssr_remove_local_rotation_info/caffenet/'
+model_path = 'data/cache/222server/remove_patch_norm/pacs_dg_r/caffenet/'
+
 model_name = 'art_painting_cartoon'
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 args = Container()
 args.image_size = 222
 # original_rotate lr_25_25 lr_25_5 lr_25_4 lr_25_3
-args.transformation_version = 'original_rotate'
+# remove_patch_position_info remove_local_rotation_info
+args.transformation_version = 'remove_local_rotation_info'
 num_usv_classes = 4
 
 model = model_fns['caffenet'](
@@ -154,7 +169,7 @@ for param in ['1.0_0.25']:
 
     print(f'model:{model_name}')
     # for target in ['photo', 'art_painting', 'cartoon', 'sketch']:
-    for target in ['photo']:
+    for target in ['cartoon']:
         for prob in [0.25]:
             print('//////////////////////////////////////')
             # torch.cuda.set_device(0)

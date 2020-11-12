@@ -28,15 +28,114 @@ class SemanticSensitiveRot(BaseDataset):
             'lr_25_5': self.lr_25_5,
             'lr_25_4': self.lr_25_4,
             'lr_25_3': self.lr_25_3,
+            'remove_local_rotation_info':self.remove_local_rotation_info,
+            'remove_patch_position_info': self.remove_patch_position_info,
+            'deep_all':self.deep_all
         }
 
     def __getitem__(self, index):
         img, label = super().__getitem__(index)
-        # img, n = SemanticSensitiveRot.lr_25_4(img, prob=self.prob)
         img, n = self.transformations[self.trans_v](img, prob=self.prob)
-        #img, n = SemanticSensitiveRot.deep_all(img, prob=self.prob)
-        #img, n = Rotation.rotate(img, prob=self.prob)
         return to_t_tf_fn(img), n, label
+
+    @staticmethod
+    def remove_local_rotation_info(img, prob=float(0)):
+        """
+        1.rotate the image
+        2.rotate the first patch of the rotated image by some degree, in order
+        to let the total rotated degree of the first patch of the rotated image
+        is 0
+
+        :param img: <class 'PIL.Image'> image
+        :param prob: probability of original image
+        :return:<class 'PIL.Image'> rotated image,
+
+        """
+        p_ = (1 - prob) / 3
+        n = np.random.choice(np.arange(4), p=[prob, p_, p_, p_])
+        # n = np.random.choice(np.arange(4), p=[0, 0, 1, 0])
+
+        if n != 0:
+            img = img.transpose(n + 1)
+        wide = int(img.size[0] / 2)
+        imgs = []
+        for x in [0, wide]:
+            for y in [0, wide]:
+                imgs.append(img.crop((x, y, x + wide, y + wide)))
+
+        ## this method can remove less information and give less noise
+        ## since there is still some weak rule
+        # n2 = np.random.choice(np.arange(4), p=[0.25, 0.25, 0.25, 0.25])
+        # for i in range(3):
+        #     imgs[(i+n2)%4] = imgs[(i+n2)%4].transpose(i+2)
+
+        ## this method can remove more information and give move noise
+        for i in range(4):
+            n2 = np.random.choice(np.arange(4), p=[0.25, 0.25, 0.25, 0.25])
+            if n2 == 0: continue
+            imgs[i] = imgs[i].transpose(n2+1)
+
+
+
+        # imgs[0] = imgs[0].transpose(5-n)
+        # imgs[1] = imgs[1].transpose(5 - n)
+        # imgs[2] = imgs[2].transpose(5 - n)
+        # imgs[3] = imgs[3].transpose(5 - n)
+
+        # for i in range(4):
+        #     imgs[i] = norm_img(imgs[i])
+
+        img2 = Image.new('RGB', img.size)
+        img2.paste(imgs[0], (0, 0))
+        img2.paste(imgs[1], (0, wide))
+        img2.paste(imgs[2], (wide, 0))
+        img2.paste(imgs[3], (wide, wide))
+
+        return img2, n
+
+    @staticmethod
+    def remove_patch_position_info(img, prob=float(0)):
+        """
+        1.rotate 3 patches of the original image
+
+        :param img: <class 'PIL.Image'> image
+        :param prob: probability of original image
+        :return:<class 'PIL.Image'> rotated image,
+
+        """
+        p_ = (1 - prob) / 3
+        n = np.random.choice(np.arange(4), p=[prob, p_, p_, p_])
+
+        wide = int(img.size[0] / 2)
+        imgs = []
+        for x in [0, wide]:
+            for y in [0, wide]:
+                imgs.append(img.crop((x, y, x + wide, y + wide)))
+        if n != 0:
+            for i in range(1, 4):
+                imgs[i] = imgs[i].transpose(n+1)
+
+        for i in range(100):
+            n2 = np.random.choice(np.arange(4), size=2, p=[0.25, 0.25, 0.25, 0.25])
+            temp = imgs[n2[0]]
+            imgs[n2[0]] = imgs[n2[1]]
+            imgs[n2[1]] = temp
+
+
+
+
+        # for i in range(4):
+        #     imgs[i] = norm_img(imgs[i])
+
+        img2 = Image.new('RGB', img.size)
+        img2.paste(imgs[0], (0, 0))
+        img2.paste(imgs[1], (0, wide))
+        img2.paste(imgs[2], (wide, 0))
+        img2.paste(imgs[3], (wide, wide))
+
+
+
+        return img2, n
 
     @staticmethod
     def original_rotate(img, prob=float(0)):
@@ -87,8 +186,8 @@ class SemanticSensitiveRot(BaseDataset):
             imgs[1] = imgs[1].transpose(local_rot + 2)
             imgs[2] = imgs[2].transpose(local_rot + 2)
 
-        for i in range(4):
-            imgs[i] = norm_img(imgs[i])
+        # for i in range(4):
+        #     imgs[i] = norm_img(imgs[i])
 
         img2 = Image.new('RGB', img.size)
         img2.paste(imgs[0], (0, 0))
@@ -177,8 +276,8 @@ class SemanticSensitiveRot(BaseDataset):
             imgs[1] = imgs[1].transpose(local_rot + 2)
             imgs[2] = imgs[2].transpose(local_rot + 2)
 
-        for i in range(4):
-            imgs[i] = norm_img(imgs[i])
+        # for i in range(4):
+        #     imgs[i] = norm_img(imgs[i])
 
         img2 = Image.new('RGB', img.size)
         img2.paste(imgs[0], (0, 0))
@@ -222,8 +321,8 @@ class SemanticSensitiveRot(BaseDataset):
             imgs[1] = imgs[1].transpose(local_rot + 2)
             imgs[2] = imgs[2].transpose(local_rot + 2)
 
-        for i in range(4):
-            imgs[i] = norm_img(imgs[i])
+        # for i in range(4):
+        #     imgs[i] = norm_img(imgs[i])
 
         img2 = Image.new('RGB', img.size)
         img2.paste(imgs[0], (0, 0))
@@ -300,10 +399,8 @@ class SSRTrain(SemanticSensitiveRot):
         img = train_tf_fn(self.args)(img)
         img = tile_tf_fn(self.args)(img)
         img_t = to_t_tf_fn(img)
-        # if n==0:
-        #     img_t = norm_tf_fn(img_t)
-        img_t = norm_tf_fn(img_t)
-        return img_t, n, label
+        return norm_tf_fn(img_t), n, label
+        # return img_t, n, label
 
 
 class SSRTest(SemanticSensitiveRot):
@@ -319,8 +416,9 @@ class SSRTest(SemanticSensitiveRot):
         img = to_i_tf_fn(img_t)
         img = test_tf_fn(self.args)(img)
         img_t = to_t_tf_fn(img)
-        # img_t = norm_tf_fn(img_t)
         return norm_tf_fn(img_t), n, label
+        # return img_t, n, label
+
 
 class SSRTest2(SemanticSensitiveRot):
     """Return tensor image with resize and normalize.
@@ -335,5 +433,4 @@ class SSRTest2(SemanticSensitiveRot):
         img = to_i_tf_fn(img_t)
         img = test_tf_fn(self.args)(img)
         img_t = to_t_tf_fn(img)
-        # img_t = norm_tf_fn(img_t)
         return norm_tf_fn(img_t), n, label, img_t

@@ -87,6 +87,10 @@ def caffenet(**kwargs):
             nn.init.constant_(m.bias, 0.)
 
     state_dict = torch.load(f'{os.path.dirname(__file__)}/../../data/cache/alexnet_caffe.pth.tar')
+    del state_dict["classifier.fc6.weight"]
+    del state_dict["classifier.fc6.bias"]
+    del state_dict["classifier.fc7.weight"]
+    del state_dict["classifier.fc7.bias"]
     del state_dict["classifier.fc8.weight"]
     del state_dict["classifier.fc8.bias"]
     model.load_state_dict(state_dict, strict=False)
