@@ -16,6 +16,8 @@ import numpy as np
 import seaborn as sns; sns.set()
 import matplotlib.pylab as plt
 import pdb
+from dl.utils.gradcam import visualize_cam, GradCAM, GradCAMpp
+
 
 manualSeed = 0
 np.random.seed(manualSeed)
@@ -50,6 +52,31 @@ def means_logit_statistics(model, data_loader, n_classes, ust_classes, device):
     print(ust_means_logit)
     # print(m(torch.Tensor(ust_means_logit)))
 
+
+def attention_gradcam(model, data_loader, n_classes, ust_classes, device):
+    layers = {}
+    for name, m in model.named_modules():
+        layers[name] = m
+    # def get_layer(model, layer_name):
+    #     return layers[layer_name]
+    # register_layer_finder('mynet')(get_layer)
+    # gradcam = GradCAM.from_config(model_type='mynet', arch=model, layer_name='features.conv5')
+    gradcam = GradCAM(model, layers['features.conv5'])
+
+    for j, (norm_data, n, c_l, data) in enumerate(data_loader):
+        norm_data, n, c_l = norm_data.to(device), n.to(device), c_l.to(device)
+
+        n_logit, c_l_logit = model(norm_data)
+        # _, c_l_pred = c_l_logit.max(dim=1)
+        _, n_pred = n_logit.max(dim=1)
+        num = 100
+        mask, logit = gradcam(norm_data[0:num])
+        heatmap, cam_result = visualize_cam(mask, data)
+
+        for i in range(num):
+            # tf.ToPILImage()(heatmap[i]).show()
+            tf.ToPILImage()(cam_result[i]).show()
+            print()
 
 
 
@@ -185,10 +212,11 @@ for param in ['1.0_0.25']:
             # for i, (data, n, c_l) in enumerate(test_s_data_loader):
             #     data, n, c_l = data.to(device), n.to(device), c_l.to(device)
             model.eval()
+            attention_gradcam(model, test_s_data_loader, 7, num_usv_classes, device=device)
+
             with torch.no_grad():
                 # means logit statistics
-                means_logit_statistics(model, test_s_data_loader, 7, num_usv_classes, device=device)
-
+                # means_logit_statistics(model, test_s_data_loader, 7, num_usv_classes, device=device)
 
 
                 ##
