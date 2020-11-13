@@ -18,15 +18,19 @@ def visualize_cam(mask, img, alpha=1.0):
     """
     heatmap = (255 * mask.squeeze()).type(torch.uint8).cpu().numpy()
 
-    heatmap2 = torch.zeros(img.size())
-    for i in range(len(heatmap)):
-        temp = cv2.applyColorMap(heatmap[i], cv2.COLORMAP_JET)
-        temp = torch.from_numpy(temp).permute(2, 0, 1).float().div(255)
-        b, g, r = temp.split(1)
-        temp = torch.cat([r, g, b]) * alpha
-        heatmap2[i] = temp
+    # heatmap2 = torch.zeros(img.size())
+    # for i in range(len(heatmap)):
+    #     temp = cv2.applyColorMap(heatmap[i], cv2.COLORMAP_JET)
+    #     temp = torch.from_numpy(temp).permute(2, 0, 1).float().div(255)
+    #     b, g, r = temp.split(1)
+    #     temp = torch.cat([r, g, b]) * alpha
+        # heatmap2[i] = temp
+    heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
+    heatmap = torch.from_numpy(heatmap).permute(2, 0, 1).float().div(255)
+    b, g, r = heatmap.split(1)
+    heatmap = torch.cat([r, g, b]) * alpha
 
-    result = heatmap2+img.cpu()
+    result = heatmap+img.cpu()
     result = result.div(result.max()).squeeze()
 
     return heatmap, result
@@ -86,14 +90,16 @@ class GradCAM(object):
             mask: saliency map of the same spatial dimension with input
             logit: model output
         """
+        if len(input.size()) == 3:
+            input = input.unsqueeze(0)
         b, c, h, w = input.size()
-
         logit = self.model_arch(input)[0]
         if class_idx is None:
             # score = logit[:, logit.max(1)[-1]].squeeze()
             score = logit[range(len(logit)), logit.max(1)[-1]].sum()
         else:
-            score = logit[:, class_idx].squeeze()
+            assert False
+            # score = logit[:, class_idx].squeeze()
 
         self.model_arch.zero_grad()
         score.backward(retain_graph=retain_graph)
