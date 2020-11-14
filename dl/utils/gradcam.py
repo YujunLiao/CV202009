@@ -98,7 +98,8 @@ class GradCAM(object):
             # score = logit[:, logit.max(1)[-1]].squeeze()
             score = logit[range(len(logit)), logit.max(1)[-1]].sum()
         else:
-            assert False
+            score = logit[range(len(logit)), len(logit)*[class_idx]].sum()
+            # assert False
             # score = logit[:, class_idx].squeeze()
 
         self.model_arch.zero_grad()

@@ -218,7 +218,8 @@ class Trainer:
             # us_loss = criterion(n_logit, n)
             ## temporary used
             c_l_logit = n_logit
-            s_loss = criterion(c_l_logit[n == 0], c_l[n == 0])
+            # s_loss = criterion(c_l_logit[n == 0], c_l[n == 0])
+            s_loss = criterion(c_l_logit, c_l)
             # s_loss = torch.tensor(-1)
 
 

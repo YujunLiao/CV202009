@@ -70,18 +70,24 @@ def attention_gradcam(model, data_loader, n_classes, ust_classes, device):
         # _, c_l_pred = c_l_logit.max(dim=1)
         _, n_pred = n_logit.max(dim=1)
         for k in range(len(norm_data)):
-            mask, logit = gradcam(norm_data[k])
-            heatmap, cam_result = visualize_cam(mask, data[k])
 
-            ## divide the resulting images into different folders
-            temp = project_path + model_path + param + '/' + model_name+ \
-                f'/{target}/cam_{c_l[k].item()}_{n_pred[k]}/'
-            if not os.path.exists(temp): os.makedirs(temp)
-            image = tf.ToPILImage()(cam_result)
-            image.save(temp+f'{j}{k}'+'.jpg')
+
+            # mask, logit = gradcam(norm_data[k])
+            # heatmap, cam_result = visualize_cam(mask, data[k])
+            for x in range(ust_classes):
+                mask, logit = gradcam(norm_data[k], x)
+                heatmap, cam_result = visualize_cam(mask, data[k])
+
+                ## divide the resulting images into different folders
+                temp = project_path + model_path + param + '/' + model_name+ \
+                    f'/{target}_r/cam_{c_l[k].item()}_{n_pred[k]}/'
+                if not os.path.exists(temp): os.makedirs(temp)
+                image = tf.ToPILImage()(cam_result)
+                image.save(temp+f'{j}_{k}_{x}'+'.jpg')
 
             # tf.ToPILImage()(cam_result).show()
-            print(j)
+        print(j)
+        break
 
 
 
@@ -121,17 +127,18 @@ def confusion_matrix(model, data_loader, n_classes, ust_classes, device):
         # label_correct += torch.sum(c_l_pred == c_l).item()
         ## un supervised
         # n_correct += torch.sum(n_pred == n).item()
+        ## supervised
         n_correct += torch.sum(n_pred == c_l).item()
 
     # print(float(label_correct) / total, float(n_correct) / total)
     print(float(n_correct) / total, "all classes precision")
     temp = matrix_ust.sum(axis=0)
-    print('**************************')
-    print(temp)
+    # print('**************************')
+    # print(temp)
     for i in range(ust_classes):
         temp[i] /= sum(temp[i])
-    print(temp)
-    print('**************************')
+    # print(temp)
+    # print('**************************')
 
 
 
@@ -145,15 +152,17 @@ def confusion_matrix(model, data_loader, n_classes, ust_classes, device):
         n_correct_per_class = 0
         for i in range(matrix_per_class.shape[0]):
             n_correct_per_class += matrix_per_class[i][i]
-        print(float(n_correct_per_class)/sum(sum(matrix_per_class)), class_name[z])
+        # print(float(n_correct_per_class)/sum(sum(matrix_per_class)), class_name[z])
 
 
         for i in range(matrix_per_class.shape[0]):
             matrix_per_class[i] = matrix_per_class[i] / sum(matrix_per_class[i]) * 100
 
-        print(matrix_per_class)
-        print('纵轴为real，横轴为pre')
-        print('********************************************')
+        # print(matrix_per_class)
+        # print('纵轴为real，横轴为pre')
+        # print('********************************************')
+
+
         # matrix_per_class = matrix_per_class.transpose()
     # matrix_ust = matrix_ust.transpose()
     # matrix = matrix.transpose()
@@ -181,15 +190,22 @@ else:
 
 ## model path
 # model_path = 'data/cache/222server/1110/pacs_dg_ssr_remove_local_rotation_info/caffenet/'
+# model_path = 'data/cache/222server/patch_norm/pacs_dg_ssr_25_25/caffenet/'
+# model_path = 'data/cache/222server/remove_all_norm/pacs_dg_ssr_25_25/caffenet/'
+# model_path = 'data/cache/222server/1110/pacs_dg_ssr_remove_local_rotation_info/caffenet/'
+# model_path = 'data/cache/222server/downstrem/dg_remove_local_rotation_info_pretrained/caffenet/'
+# model_path = 'data/cache/222server/downstrem/dg_ssr_25_25_pretrained/caffenet/'
+# model_path = 'data/cache/222server/downstrem/deep_all_r_invariant_dg_r_pretrained2/caffenet/'
 model_path = 'data/cache/222server/downstrem/deep_all/caffenet/'
+# model_path = 'data/cache/222server/remove_patch_norm/pacs_dg_r/caffenet/'
 
-model_name = 'art_painting_photo'
+model_name = 'art_painting_cartoon'
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 args = Container()
 args.image_size = 222
 # original_rotate lr_25_25 lr_25_5 lr_25_4 lr_25_3
 # remove_patch_position_info remove_local_rotation_info deep_all
-args.transformation_version = 'deep_all'
+args.transformation_version = 'original_rotate'
 num_usv_classes = 7
 
 model = model_fns['caffenet'](
@@ -205,70 +221,72 @@ for param in ['1.0_0.25']:
     # sys.stdout = open(output_file, 'w')
 
     print(f'model:{model_name}')
-    # for target in ['photo', 'art_painting', 'cartoon', 'sketch']:
-    for target in ['cartoon']:
-        for prob in [0.25]:
-            print('//////////////////////////////////////')
+    for target in ['art_painting', 'cartoon', 'sketch','photo']:
+    # for target in ['cartoon']:
+        for prob in [1, 0.25]:
+            print(f'prob:{prob}//////////////////////////////////////')
             # torch.cuda.set_device(0)
+            print('load', project_path + model_path+param+f'/{model_name}.pkl')
             model.load_state_dict(torch.load(project_path + model_path+param+f'/{model_name}.pkl', map_location=device))
 
+            for data_name in ['test/', 'train/', 'validate/']:
+                ## choose dataset
+                test_paths, _, test_labels, _ = get_p_l(target, dir=project_path + 'data/'+data_name)
+                test_s_DS = SSRTest2(test_paths, test_labels, prob=prob, args=args)
+                # test_s_DS = SSRTest(test_paths, test_labels, prob=prob, args=args)
+                test_s_data_loader = test_DL_fn(test_s_DS, 128)
 
-            ## choose dataset
-            test_paths, _, test_labels, _ = get_p_l(target, dir=project_path + 'data/validate/')
-            test_s_DS = SSRTest2(test_paths, test_labels, prob=prob, args=args)
-            # test_s_DS = SSRTest(test_paths, test_labels, prob=prob, args=args)
-            test_s_data_loader = test_DL_fn(test_s_DS, 128)
+                # for i, (data, n, c_l) in enumerate(test_s_data_loader):
+                #     data, n, c_l = data.to(device), n.to(device), c_l.to(device)
+                model.eval()
+                attention_gradcam(model, test_s_data_loader, 7, num_usv_classes, device=device)
 
-            # for i, (data, n, c_l) in enumerate(test_s_data_loader):
-            #     data, n, c_l = data.to(device), n.to(device), c_l.to(device)
-            model.eval()
-            # attention_gradcam(model, test_s_data_loader, 7, num_usv_classes, device=device)
+                with torch.no_grad():
+                    # pass
+                    ## means logit statistics
+                    # means_logit_statistics(model, test_s_data_loader, 7, num_usv_classes, device=device)
+                #
+                #     # print(Trainer.test(model, test_s_data_loader, device))
+                #     matrix, matrix_ust = confusion_matrix(model, test_s_data_loader, 7, num_usv_classes, device=device)
+                #
+                    # ## write to excel
+                    # w(ws, begin_i, begin_j, param+target+str(prob))
+                    # for m in matrix_ust:
+                    #     begin_i += 1
+                    #     w_matrix(ws, begin_i, begin_j, m)
+                    #     # w_matrix(ws, begin_i, begin_j+m.shape[0]+3, matrix_ust)
+                    #     begin_i += m.shape[0]+1
 
-            with torch.no_grad():
-            #     # means logit statistics
-            #     means_logit_statistics(model, test_s_data_loader, 7, num_usv_classes, device=device)
-            #
-            #     # print(Trainer.test(model, test_s_data_loader, device))
-                matrix, matrix_ust = confusion_matrix(model, test_s_data_loader, 7, num_usv_classes, device=device)
-            #
-            #     ## write to excel
-            #     w(ws, begin_i, begin_j, param+target+str(prob))
-            #     for m in matrix_ust:
-            #         begin_i += 1
-            #         w_matrix(ws, begin_i, begin_j, m)
-            #         # w_matrix(ws, begin_i, begin_j+m.shape[0]+3, matrix_ust)
-            #         begin_i += m.shape[0]+1
-            #
-            #         ## supervised result
-            #         # for i in range(m.shape[0]):
-            #         #     for j in range(m.shape[1]):
-            #         #         w(ws, i, j, m[i][j])
-            #         # for i in range(matrix_ust.shape[0]):
-            #         #     for j in range(matrix_ust.shape[1]):
-            #         #         w(ws, i, j+matrix.shape[0]+3, matrix[i][j])
-            #
-            #     ## visulization
-            #     # if prob == 1:
-            #     #     #plt.figure(figsize=(16, 16))
-            #     #     categories = ['dog', 'elep.', 'giraffe', 'guitar', 'horse', 'house', 'person']
-            #     #     chart = sns.heatmap(matrix, annot=True, fmt='.1f', cmap='Reds', cbar=True,)
-            #     #     chart.set_xticklabels(labels=categories)
-            #     #     chart.set_yticklabels(labels=categories)
-            #     #     plt.xlabel("Real")
-            #     #     plt.ylabel("Predict")
-            #     #     plt.title('Standard rotation')
-            #     #     plt.show()
-            #     # if prob == 0.25:
-            #     #     #plt.figure(figsize=(16, 16))
-            #     #     chart = sns.heatmap(matrix_ust, annot=True, fmt='.1f', cmap='Reds', cbar=True, )
-            #     #     plt.xlabel("Real")
-            #     #     plt.ylabel("Predict")
-            #     #     plt.title('Standard rotation')
-            #     #     plt.show()
-            #     print(f'param:{param}')
-            #     print(f'target domain:{target}')
-            #     print(f'origin image prob:{prob}')
-            #     print('-------------------------------------')
+                        ## supervised result
+                        # for i in range(m.shape[0]):
+                        #     for j in range(m.shape[1]):
+                        #         w(ws, i, j, m[i][j])
+                        # for i in range(matrix_ust.shape[0]):
+                        #     for j in range(matrix_ust.shape[1]):
+                        #         w(ws, i, j+matrix.shape[0]+3, matrix[i][j])
+                #
+                #     ## visulization
+                #     # if prob == 1:
+                #     #     #plt.figure(figsize=(16, 16))
+                #     #     categories = ['dog', 'elep.', 'giraffe', 'guitar', 'horse', 'house', 'person']
+                #     #     chart = sns.heatmap(matrix, annot=True, fmt='.1f', cmap='Reds', cbar=True,)
+                #     #     chart.set_xticklabels(labels=categories)
+                #     #     chart.set_yticklabels(labels=categories)
+                #     #     plt.xlabel("Real")
+                #     #     plt.ylabel("Predict")
+                #     #     plt.title('Standard rotation')
+                #     #     plt.show()
+                #     # if prob == 0.25:
+                #     #     #plt.figure(figsize=(16, 16))
+                #     #     chart = sns.heatmap(matrix_ust, annot=True, fmt='.1f', cmap='Reds', cbar=True, )
+                #     #     plt.xlabel("Real")
+                #     #     plt.ylabel("Predict")
+                #     #     plt.title('Standard rotation')
+                #     #     plt.show()
+                #     print(f'param:{param}')
+                #     print(f'target domain:{target}')
+                #     print(f'origin image prob:{prob}')
+                #     print('-------------------------------------')
 print(f'confusion_{project_path}{model_path}{param}/{model_name}.xlsx')
-wb.save(f'{project_path}{model_path}{param}/{model_name}_confusion.xlsx')
+# wb.save(f'{project_path}{model_path}{param}/{model_name}_confusion.xlsx')
 
