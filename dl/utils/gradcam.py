@@ -6,6 +6,38 @@ import torch
 # from .utils import layer_finders
 
 
+class InputGrad:
+    def __init__(self, model):
+        self.model = model
+        self.layer = self.get_layers()['features.conv5']
+        self.activations = dict()
+
+        def forward_hook(module, input, output):
+            self.activations['out'] = output
+            self.activations['in'] = input
+        self.layer.register_forward_hook(forward_hook)
+
+    def get_input_gradient(self, logit):
+        # input = norm_data[k].unsqueeze(0)
+        # logit = model(input)[0]
+        score = logit[range(len(logit)), logit.max(1)[-1]].sum()
+        return torch.autograd.grad(score, self.activations['out'], create_graph=True)[0]
+
+    def get_layers(self):
+        layers = {}
+        for name, m in self.model.named_modules():
+            layers[name] = m
+        return layers
+
+
+
+
+
+
+
+
+
+
 def visualize_cam(mask, img, alpha=1.0):
     """Make heatmap from mask and synthesize GradCAM result image using heatmap and img.
     Args:
@@ -62,10 +94,15 @@ class GradCAM(object):
 
         self.gradients = dict()
         self.activations = dict()
+        self.target_layer = target_layer
         def backward_hook(module, grad_input, grad_output):
             self.gradients['value'] = grad_output[0]
+            self.gradients['out'] = grad_output
+            self.gradients['in'] = grad_input
+
         def forward_hook(module, input, output):
             self.activations['value'] = output
+            self.activations['in'] = input
 
         target_layer.register_forward_hook(forward_hook)
         target_layer.register_backward_hook(backward_hook)
@@ -103,9 +140,12 @@ class GradCAM(object):
             # score = logit[:, class_idx].squeeze()
 
         self.model_arch.zero_grad()
-        score.backward(retain_graph=retain_graph)
+        score.backward(retain_graph=True)
         gradients = self.gradients['value']
+
+
         activations = self.activations['value']
+        gradients2 = torch.autograd.grad(score, activations, retain_graph=False)[0]
         b, k, u, v = gradients.size()
 
         alpha = gradients.view(b, k, -1).mean(2)

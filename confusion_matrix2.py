@@ -16,7 +16,7 @@ import numpy as np
 import seaborn as sns; sns.set()
 import matplotlib.pylab as plt
 import pdb
-from dl.utils.gradcam import visualize_cam, GradCAM, GradCAMpp
+from dl.utils.gradcam import visualize_cam, GradCAM, GradCAMpp, InputGrad
 
 
 manualSeed = 0
@@ -54,29 +54,48 @@ def means_logit_statistics(model, data_loader, n_classes, ust_classes, device):
 
 
 def attention_gradcam(model, data_loader, n_classes, ust_classes, device):
-    layers = {}
-    for name, m in model.named_modules():
-        layers[name] = m
-    # def get_layer(model, layer_name):
-    #     return layers[layer_name]
-    # register_layer_finder('mynet')(get_layer)
-    # gradcam = GradCAM.from_config(model_type='mynet', arch=model, layer_name='features.conv5')
-    gradcam = GradCAM(model, layers['features.conv5'])
+    # layers = {}
+    # for name, m in model.named_modules():
+    #     layers[name] = m
+    # gradcam = GradCAM(model, layers['features.conv5'])
 
     for j, (norm_data, n, c_l, data) in enumerate(data_loader):
         norm_data, n, c_l = norm_data.to(device), n.to(device), c_l.to(device)
 
+
+        input_grad = InputGrad(model)
         n_logit, c_l_logit = model(norm_data)
         # _, c_l_pred = c_l_logit.max(dim=1)
         _, n_pred = n_logit.max(dim=1)
+
+
+        # input = norm_data[k].unsqueeze(0)
+        # logit = model(norm_data)[0]
+        gradients2 = input_grad.get_input_gradient(n_logit)
+
         for k in range(len(norm_data)):
-
-
-            # mask, logit = gradcam(norm_data[k])
-            # heatmap, cam_result = visualize_cam(mask, data[k])
             for x in range(ust_classes):
-                mask, logit = gradcam(norm_data[k], x)
-                heatmap, cam_result = visualize_cam(mask, data[k])
+                ## test
+                # activations = dict()
+                # def forward_hook(module, input, output):
+                #     activations['value'] = output
+                #     activations['in'] = input
+                #
+                # layers['features.conv5'].register_forward_hook(forward_hook)
+                # input = norm_data[k].unsqueeze(0)
+                # logit = model(input)[0]
+                # score = logit[range(len(logit)), logit.max(1)[-1]].sum()
+                #
+                # activations = activations['value']
+                # gradients2 = torch.autograd.grad(score, activations, create_graph=True)[0]
+
+
+
+
+
+
+                # mask, logit = gradcam(norm_data[k], x)
+                # heatmap, cam_result = visualize_cam(mask, data[k])
 
                 ## divide the resulting images into different folders
                 temp = project_path + model_path + param + '/' + model_name+ \
@@ -242,7 +261,7 @@ for param in ['1.0_0.25']:
                 attention_gradcam(model, test_s_data_loader, 7, num_usv_classes, device=device)
 
                 with torch.no_grad():
-                    # pass
+                    pass
                     ## means logit statistics
                     # means_logit_statistics(model, test_s_data_loader, 7, num_usv_classes, device=device)
                 #
