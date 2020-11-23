@@ -6,9 +6,9 @@
 # /bin/bash $HOME/Files/pycharm_project/CV/scripts/remote/DG_IR_caffe
 ssh -t pc1 "
 project_path=/media/autolab/1506ebe6-2e20-47c1-a0f6-9022bc6c122a/lyj/project/CV202009/
-script=\${project_path}scripts/remote/DG_SSR_caffe
-#script=\${project_path}scripts/remote/down_stream_DG
-GPU=0
+#script=\${project_path}scripts/remote/DG_SSR_caffe
+script=\${project_path}scripts/remote/down_stream_DG
+GPU=1
 
 echo \$(date)
 echo "GPU \$GPU"

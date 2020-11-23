@@ -17,11 +17,11 @@ class InputGrad:
             self.activations['in'] = input
         self.layer.register_forward_hook(forward_hook)
 
-    def get_input_gradient(self, logit):
+    def get_input_gradient(self, logit, create_graph=False):
         # input = norm_data[k].unsqueeze(0)
         # logit = model(input)[0]
         score = logit[range(len(logit)), logit.max(1)[-1]].sum()
-        return torch.autograd.grad(score, self.activations['out'], create_graph=True)[0]
+        return torch.autograd.grad(score, self.activations['out'], create_graph=create_graph)[0]
 
     def get_layers(self):
         layers = {}
@@ -29,6 +29,22 @@ class InputGrad:
             layers[name] = m
         return layers
 
+    def get_mask(self, activations, gradients):
+        b, k, u, v = gradients.size()
+        alpha = gradients.view(b, k, -1).mean(2)
+        # alpha = F.relu(gradients.view(b, k, -1)).mean(2)
+        weights = alpha.view(b, k, 1, 1)
+
+        saliency_map = (weights * activations).sum(1, keepdim=True)
+        saliency_map = F.relu(saliency_map)
+        saliency_map = F.interpolate(saliency_map, size=(222, 222), mode='bilinear', align_corners=False)
+
+        saliency_map_min, saliency_map_max = saliency_map.min(), saliency_map.max()
+        # saliency_map = (saliency_map - saliency_map_min).div(saliency_map_max - saliency_map_min).data
+        saliency_map = (saliency_map - saliency_map_min).div(saliency_map_max - saliency_map_min)
+
+
+        return saliency_map
 
 
 

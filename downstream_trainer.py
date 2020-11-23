@@ -16,6 +16,7 @@ import wandb
 from dl.data_loader.dgr import get_DGR_data_loader
 from dl.data_loader.dgssr import get_DGSSR_data_loader
 from dl.optimizer import get_optimizer
+from dl.utils.gradcam import InputGrad, visualize_cam
 from dl.utils.writer import Writer
 from dl.utils.s2t import ms2st, ss2st
 from dl.utils.pp import pretty_print as pp
@@ -44,13 +45,13 @@ def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--device', type=str,
         default='cuda' if torch.cuda.is_available() else 'cpu')
-    parser.add_argument("--network", default='resnet18')
+    parser.add_argument("--network", default='caffenet')
     parser.add_argument("--source", nargs='+')
     parser.add_argument("--target")
     parser.add_argument("--num_classes", "-c", type=int, default=7)
     parser.add_argument("--num_usv_classes", type=int, default=4)
     parser.add_argument('--transformation_version', type=str,
-                        default='')
+                        default='deep_all')
 
     parser.add_argument("--domains", nargs='+',
                         default=['sketch'])
@@ -97,10 +98,12 @@ def get_args():
 
 class Trainer:
     def __init__(self, args, model, data_loaders, optimizer, scheduler, writer):
+
         # self.args = args.args
         self.args = args
         self.device = args.device
         self.model = model.to(args.device)
+        self.input_grad = InputGrad(model)
         self.writer = writer
         self.train_data_loader, \
         self.val_s_data_loader, self.val_us_data_loader, \
@@ -204,9 +207,9 @@ class Trainer:
         criterion = nn.CrossEntropyLoss()
 
         # Set the mode of the model to trainer, then the parameters can begin to be trained
-        self.model.train()
-        for i, (data, n, c_l) in enumerate(self.train_data_loader):
 
+        for i, (data, n, c_l) in enumerate(self.train_data_loader):
+            self.model.train()
             data, n, c_l = data.to(self.device), n.to(self.device), c_l.to(self.device)
             # for i in range(20):
             #     print(n[i])
@@ -226,10 +229,69 @@ class Trainer:
             _, c_l_pred = c_l_logit.max(dim=1)
             # _, n_pred = n_logit.max(dim=1)
             # _, domain_pred = domain_logit.max(dim=1)
+
+
+            self.model.eval()
+            n_random = torch.randint(0, 4, (len(data), ))
+
+            n_logit2, _ = self.model(data)
+            activations = self.input_grad.activations['out']
+
+            grad = self.input_grad.get_input_gradient(n_logit2, create_graph=True)
+            abs_grad = torch.norm(grad)
+
+            mask = self.input_grad.get_mask(activations, grad).data
+            # k = 5
+            # tf.ToPILImage()(visualize_cam(mask[k], data[k])[0]).show()
+            # tf.ToPILImage()(visualize_cam(mask[k], data[k])[1]).show()
+
+            grad *= 100000
+
+
+            data_r = torch.zeros_like(data)
+            for j in range(len(data)): data_r[j] = torch.rot90(data[j], -n_random[j].item(), [1, 2])
+            n_logit_r, _ = self.model(data_r)
+            activations_r = self.input_grad.activations['out']
+
+
+            grad_r = self.input_grad.get_input_gradient(n_logit_r, create_graph=True)
+            abs_grad = torch.norm(grad)
+
+            mask_r = self.input_grad.get_mask(activations_r, grad_r)
+            # tf.ToPILImage()(visualize_cam(mask_r[k], data_r[k])[0]).show()
+            # tf.ToPILImage()(visualize_cam(mask_r[k], data_r[k])[1]).show()
+
+            for j in range(len(mask_r)): mask_r[j] = torch.rot90(mask_r[j], n_random[j].item(), [1, 2])
+
+
+            for j in range(len(grad_r)): grad_r[j] = torch.rot90(grad_r[j], n_random[j].item(), [1, 2])
+            grad_r *= 100000
+            # grad_ori = grad_ori.reshape(grad_ori.shape[0], -1)
+            # print(data_ori[0] == data[0])
+            # print(grad_ori[0] == grad[0])
+
+
+            self.model.train()
+
+            # input_gradient_loss = nn.MSELoss()(grad_r, grad)
+            input_gradient_loss = nn.MSELoss()(mask_r, mask)
             # loss = s_loss + us_loss * self.args.usvt_weight
             # loss = us_loss * self.args.usvt_weight
-            loss = s_loss
+            # loss = s_loss
 
+            # if self.cur_epoch != 0 and 20*input_gradient_loss.item() < s_loss.item():
+            #     loss = s_loss
+            # else:
+            #     loss = s_loss +  5*input_gradient_loss
+            #     # loss = s_loss
+            # if abs_grad.item()>0.4 and abs_grad.item() < 1.0:
+            #     loss = s_loss  +  5*input_gradient_loss
+            # else:
+            #     loss = s_loss
+                # loss = s_loss
+
+
+            loss = s_loss + 50 * input_gradient_loss
             loss.backward()
             self.optimizer.step()
 
@@ -250,11 +312,14 @@ class Trainer:
                                 'acc/train/usv_task': acc_u,
                                 'loss/train/class': s_loss.item(),
                                 # 'loss/train/usv_task': us_loss.item(),
-                            'loss/train/sum': loss.item()})
+                                'loss/train/sum': loss.item()})
 
             if i == len(self.train_data_loader) - 1:
                 print()
                 pp(f'@{acc_s}:train_acc:s;{acc_u}:u')
+                pp(f'train_loss:s:{s_loss.item()};input_gradient_loss:{input_gradient_loss.item()}')
+                pp(f'loss:{loss.item()},abs_grad:{abs_grad.item()}')
+
                 # pp(f'train_loss:s:{s_loss.item()};u:{us_loss.item()}')
                 # pp(f'@{acc_u}:train_acc:u')
                 # pp(f'train_loss:u:{us_loss.item()}')
@@ -316,6 +381,7 @@ def iterate_args(args):
 
 
 def main():
+    torch.autograd.set_detect_anomaly(True)
     # This flag allows you to enable the inbuilt cudnn auto-tuner to
     # find the best algorithm to use for your hardware.
     torch.backends.cudnn.benchmark = True

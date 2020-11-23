@@ -16,6 +16,7 @@ import wandb
 from dl.data_loader.dgr import get_DGR_data_loader
 from dl.data_loader.dgssr import get_DGSSR_data_loader
 from dl.optimizer import get_optimizer
+from dl.utils.gradcam import InputGrad
 from dl.utils.writer import Writer
 from dl.utils.s2t import ms2st, ss2st
 from dl.utils.pp import pretty_print as pp
@@ -44,19 +45,19 @@ def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--device', type=str,
         default='cuda' if torch.cuda.is_available() else 'cpu')
-    parser.add_argument("--network", default='resnet18')
+    parser.add_argument("--network", default='caffenet')
     parser.add_argument("--source", nargs='+')
     parser.add_argument("--target")
     parser.add_argument("--num_classes", "-c", type=int, default=7)
     parser.add_argument("--num_usv_classes", type=int, default=4)
     parser.add_argument('--transformation_version', type=str,
-                        default='')
+                        default='original_rotate')
 
     parser.add_argument("--domains", nargs='+',
                         default=['sketch'])
     parser.add_argument("--targets", nargs='+', default=['photo'])
     parser.add_argument("--repeat_times", type=int, default=1)
-    parser.add_argument("--parameters", nargs='+', default=[[0.7, 0.7],[0.5, 0.75]],
+    parser.add_argument("--parameters", nargs='+', default=[[0.01, 0.01],[0.5, 0.75]],
                         type=lambda params:[float(_) for _ in params.split(',')])
 
 
@@ -100,6 +101,7 @@ class Trainer:
         self.args = args
         self.device = args.device
         self.model = model.to(args.device)
+        self.input_grad = InputGrad(model)
         self.writer = writer
         self.train_data_loader, \
         self.val_s_data_loader, self.val_us_data_loader, \
@@ -218,12 +220,27 @@ class Trainer:
             # s_loss = criterion(c_l_logit[n == 0], c_l[n == 0])
             s_loss = torch.tensor(-1)
 
+            grad = self.input_grad.get_input_gradient(n_logit)
+            grad *= 100000
+            # grad = grad.reshape(grad.shape[0], -1)
+
+            data_ori = torch.zeros_like(data)
+            for j in range(len(data)): data_ori[j] = torch.rot90(data[j], -n[j], [1, 2])
+            # data_ori = torch.tensor([torch.rot90(data[i], -n[i], [1, 2]) for i in range(len(data))])
+            n_logit_ori, _ = self.model(data_ori)
+            grad_ori = self.input_grad.get_input_gradient(n_logit_ori)
+            for j in range(len(grad_ori)): grad_ori[j] = torch.rot90(grad_ori[j], n[j], [1, 2])
+            grad_ori *= 100000
+            # grad_ori = grad_ori.reshape(grad_ori.shape[0], -1)
+
+            input_gradient_loss = nn.MSELoss()(grad_ori, grad)
 
             # _, c_l_pred = c_l_logit.max(dim=1)
             _, n_pred = n_logit.max(dim=1)
             # _, domain_pred = domain_logit.max(dim=1)
             # loss = s_loss + us_loss * self.args.usvt_weight
-            loss = us_loss * self.args.usvt_weight
+            # loss = us_loss * self.args.usvt_weight
+            loss = us_loss * self.args.usvt_weight + 0.01*input_gradient_loss
 
             loss.backward()
             self.optimizer.step()
@@ -252,6 +269,8 @@ class Trainer:
                 # pp(f'train_loss:s:{s_loss.item()};u:{us_loss.item()}')
                 pp(f'@{acc_u}:train_acc:u')
                 pp(f'train_loss:u:{us_loss.item()}')
+                pp(f'input_gradient_loss:u:{input_gradient_loss.item()}')
+
 
             # del loss, s_loss, us_loss, n_logit, c_l_logit
             torch.cuda.empty_cache()
