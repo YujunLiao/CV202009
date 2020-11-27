@@ -231,7 +231,7 @@ class Trainer:
             # _, domain_pred = domain_logit.max(dim=1)
 
 
-            self.model.eval()
+            # self.model.eval()
             n_random = torch.randint(0, 4, (len(data), ))
 
             n_logit2, _ = self.model(data)
@@ -255,7 +255,7 @@ class Trainer:
 
 
             grad_r = self.input_grad.get_input_gradient(n_logit_r, create_graph=True)
-            abs_grad = torch.norm(grad)
+            abs_grad_r = torch.norm(grad_r)
 
             mask_r = self.input_grad.get_mask(activations_r, grad_r)
             # tf.ToPILImage()(visualize_cam(mask_r[k], data_r[k])[0]).show()
@@ -263,18 +263,19 @@ class Trainer:
 
             for j in range(len(mask_r)): mask_r[j] = torch.rot90(mask_r[j], n_random[j].item(), [1, 2])
 
-
-            for j in range(len(grad_r)): grad_r[j] = torch.rot90(grad_r[j], n_random[j].item(), [1, 2])
+            grad_r_r = torch.zeros_like(grad_r)
+            for j in range(len(grad_r)): grad_r_r[j] = torch.rot90(grad_r[j], n_random[j].item(), [1, 2])
             grad_r *= 100000
             # grad_ori = grad_ori.reshape(grad_ori.shape[0], -1)
             # print(data_ori[0] == data[0])
             # print(grad_ori[0] == grad[0])
 
 
-            self.model.train()
+            # self.model.train()
 
             # input_gradient_loss = nn.MSELoss()(grad_r, grad)
-            input_gradient_loss = nn.MSELoss()(mask_r, mask)
+            mask_loss = nn.MSELoss()(mask_r, mask)
+            input_gradient_loss = nn.MSELoss()(grad_r, grad_r_r)
             # loss = s_loss + us_loss * self.args.usvt_weight
             # loss = us_loss * self.args.usvt_weight
             # loss = s_loss
@@ -288,10 +289,10 @@ class Trainer:
             #     loss = s_loss  +  5*input_gradient_loss
             # else:
             #     loss = s_loss
-                # loss = s_loss
+            loss = mask_loss
 
 
-            loss = s_loss + 50 * input_gradient_loss
+            # loss = s_loss + 80 * input_gradient_loss
             loss.backward()
             self.optimizer.step()
 
@@ -318,7 +319,8 @@ class Trainer:
                 print()
                 pp(f'@{acc_s}:train_acc:s;{acc_u}:u')
                 pp(f'train_loss:s:{s_loss.item()};input_gradient_loss:{input_gradient_loss.item()}')
-                pp(f'loss:{loss.item()},abs_grad:{abs_grad.item()}')
+                pp(f'mask_loss:{mask_loss.item()}')
+                pp(f'loss:{loss.item()},abs_grad:{abs_grad.item()},abs_grad_r:{abs_grad_r.item()}')
 
                 # pp(f'train_loss:s:{s_loss.item()};u:{us_loss.item()}')
                 # pp(f'@{acc_u}:train_acc:u')
