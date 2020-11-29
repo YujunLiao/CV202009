@@ -76,16 +76,16 @@ class AlexNetCaffe(nn.Module):
         return [
             {"params": chain(
                 self.features.parameters(),
-                self.classifier.parameters(),
-                self.usv_classifier.parameters(),
+                # self.classifier.parameters(),
+                # self.usv_classifier.parameters(),
             ),
             # "lr": lr,
             "lr": 0.
             },
             {"params":
                  chain(self.classifier2.parameters(),
-                       # self.classifier.parameters(),
-                       # self.usv_classifier.parameters(),
+                       self.classifier.parameters(),
+                       self.usv_classifier.parameters(),
                        ),
              "lr": lr
             }
@@ -110,7 +110,8 @@ class AlexNetCaffe(nn.Module):
         n_logit_2 = self.medi(grad)
         n_logit_2 = self.classifier(n_logit_2)
         n_logit_2 = self.usv_classifier(n_logit_2)
-        #
+        # n_logit_2 = self.classifier2(n_logit_2)
+
         return n_logit + n_logit_2, -1
         # return n_logit, -1
 
