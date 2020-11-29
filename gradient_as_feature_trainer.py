@@ -412,12 +412,12 @@ def main():
             print(f"load model data/cache/222server/{args.load_model}")
             state_dict = torch.load(f'{os.path.dirname(__file__)}/'
                                     f'data/cache/222server/{args.load_model}.pkl')
-            del state_dict["classifier.fc6.weight"]
-            del state_dict["classifier.fc6.bias"]
-            del state_dict["classifier.fc7.weight"]
-            del state_dict["classifier.fc7.bias"]
-            del state_dict["usv_classifier.weight"]
-            del state_dict["usv_classifier.bias"]
+            # del state_dict["classifier.fc6.weight"]
+            # del state_dict["classifier.fc6.bias"]
+            # del state_dict["classifier.fc7.weight"]
+            # del state_dict["classifier.fc7.bias"]
+            # del state_dict["usv_classifier.weight"]
+            # del state_dict["usv_classifier.bias"]
             model.load_state_dict(state_dict, strict=False)
 
         # monitor_memory()

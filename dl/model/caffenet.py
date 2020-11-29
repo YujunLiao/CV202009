@@ -39,10 +39,13 @@ class AlexNetCaffe(nn.Module):
 
         self.usv_classifier = nn.Linear(4096, num_usv_classes)
 
-        self.classifier2 = nn.Sequential(OrderedDict([
+        self.medi = nn.Sequential(OrderedDict([
             ("relu5", nn.ReLU(inplace=True)),
             ("pool5", nn.MaxPool2d(kernel_size=3, stride=2, ceil_mode=True)),
             ("Flatten", Flatten()),
+        ]))
+        self.classifier2 = nn.Sequential(OrderedDict([
+
             ("fc6", nn.Linear(256 * 6 * 6, 4096)),
             ("relu6", nn.ReLU(inplace=True)),
             ("drop6", nn.Dropout() if dropout else Id()),
@@ -73,16 +76,16 @@ class AlexNetCaffe(nn.Module):
         return [
             {"params": chain(
                 self.features.parameters(),
-                # self.classifier.parameters(),
-                # self.usv_classifier.parameters(),
+                self.classifier.parameters(),
+                self.usv_classifier.parameters(),
             ),
             # "lr": lr,
             "lr": 0.
             },
             {"params":
                  chain(self.classifier2.parameters(),
-                       self.classifier.parameters(),
-                       self.usv_classifier.parameters(),
+                       # self.classifier.parameters(),
+                       # self.usv_classifier.parameters(),
                        ),
              "lr": lr
             }
@@ -95,15 +98,31 @@ class AlexNetCaffe(nn.Module):
     def forward(self, x, lambda_val=0, first=True):
         x = self.features(x*57.6)  #57.6 is the magic number needed to bring torch data back to the range of caffe data, based on used std
         x = x.view(x.size(0), -1)
-        #d = ReverseLayerF.apply(x, lambda_val)
-        x = self.classifier(x)
-        # # return self.usv_classifier(x), self.class_classifier(x)#, self.domain_classifier(d)
+
         #
-        n_logit = self.usv_classifier(x)
+        # n_logit = self.classifier(x)
+        # n_logit = self.usv_classifier(n_logit)
+
+        n_logit = self.classifier2(x)
+
+
         grad = self.input_grad.get_input_gradient(n_logit, create_graph=True)
-        n_logit_2 = self.classifier2(grad)
-        return n_logit+10*n_logit_2, -1
-        # return self.classifier2(x), -1
+        n_logit_2 = self.medi(grad)
+        n_logit_2 = self.classifier(n_logit_2)
+        n_logit_2 = self.usv_classifier(n_logit_2)
+        #
+        return n_logit + n_logit_2, -1
+        # return n_logit, -1
+
+        # # d = ReverseLayerF.apply(x, lambda_val)
+        # x = self.classifier2(x)
+        # # # return self.usv_classifier(x), self.class_classifier(x)#, self.domain_classifier(d)
+        # #
+        # n_logit = self.usv_classifier(x)
+        # grad = self.input_grad.get_input_gradient(n_logit, create_graph=True)
+        # n_logit_2 = self.classifier2(grad)
+        # return n_logit+10*n_logit_2, -1
+        # # return self.classifier2(x), -1
 
 
 
