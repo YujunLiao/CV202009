@@ -24,7 +24,7 @@
 # -u 指 user 交互
 CUDA_VISIBLE_DEVICES=$1 \
 /home/autolab/lyj/py_env1/bin/python3.7 -u \
-/media/autolab/1506ebe6-2e20-47c1-a0f6-9022bc6c122a/lyj/project/CV202009/downstream_trainer.py \
+/media/autolab/1506ebe6-2e20-47c1-a0f6-9022bc6c122a/lyj/project/CV202009/gradient_as_feature_trainer.py \
 --redirect_to_file null \
 --parameters  1,0.25  \
 --domains  art_painting cartoon sketch photo   \
@@ -40,6 +40,7 @@ CUDA_VISIBLE_DEVICES=$1 \
 --min_scale 0.8 --max_scale 1.0 --random_horiz_flip 0 --jitter 0.4 --tile_random_grayscale 0.1 \
 --max_num_s_img -1 \
 --experiment 1129/test \
+--load_model downstrem/deep_all/caffenet/1.0_0.25/art_painting_cartoon \
 #--load_model remove_patch_norm/pacs_dg_r/caffenet/1.0_0.25/art_painting_cartoon \
 #--load_model 1110/pacs_dg_ssr_remove_local_rotation_info/caffenet/1.0_0.25/art_painting_cartoon \
 # --wandb

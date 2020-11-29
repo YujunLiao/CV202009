@@ -104,6 +104,7 @@ class Trainer:
         self.device = args.device
         self.model = model.to(args.device)
         self.input_grad = InputGrad(model)
+        model.input_grad = self.input_grad
         self.writer = writer
         self.train_data_loader, \
         self.val_s_data_loader, self.val_us_data_loader, \
@@ -219,8 +220,12 @@ class Trainer:
 
             n_logit, c_l_logit = self.model(data)  # , lambda_val=lambda_val)
             # us_loss = criterion(n_logit, n)
+
+
+
             ## temporary used
             c_l_logit = n_logit
+            # c_l_logit = n_logit+n_logit_2
             # s_loss = criterion(c_l_logit[n == 0], c_l[n == 0])
             s_loss = criterion(c_l_logit, c_l)
             # s_loss = torch.tensor(-1)
@@ -231,64 +236,64 @@ class Trainer:
             # _, domain_pred = domain_logit.max(dim=1)
 
 
-            # self.model.eval()
-            n_random = torch.randint(0, 4, (len(data), ))
-
-            n_logit2, _ = self.model(data)
-            activations = self.input_grad.activations['out']
-
-            grad = self.input_grad.get_input_gradient(n_logit2, create_graph=True)
-            abs_grad = torch.norm(grad)
-
-            mask = self.input_grad.get_mask(activations, grad).data
-            # k = 5
-            # tf.ToPILImage()(visualize_cam(mask[k], data[k])[0]).show()
-            # tf.ToPILImage()(visualize_cam(mask[k], data[k])[1]).show()
-
-            grad *= 100000
-
-
-            data_r = torch.zeros_like(data)
-            for j in range(len(data)): data_r[j] = torch.rot90(data[j], -n_random[j].item(), [1, 2])
-            n_logit_r, _ = self.model(data_r)
-            activations_r = self.input_grad.activations['out']
-
-
-            grad_r = self.input_grad.get_input_gradient(n_logit_r, create_graph=True)
-            abs_grad_r = torch.norm(grad_r)
-
-            mask_r = self.input_grad.get_mask(activations_r, grad_r)
-            # tf.ToPILImage()(visualize_cam(mask_r[k], data_r[k])[0]).show()
-            # tf.ToPILImage()(visualize_cam(mask_r[k], data_r[k])[1]).show()
-
-            for j in range(len(mask_r)): mask_r[j] = torch.rot90(mask_r[j], n_random[j].item(), [1, 2])
-
-            grad_r_r = torch.zeros_like(grad_r)
-            for j in range(len(grad_r)): grad_r_r[j] = torch.rot90(grad_r[j], n_random[j].item(), [1, 2])
-            grad_r *= 100000
-            # grad_ori = grad_ori.reshape(grad_ori.shape[0], -1)
-            # print(data_ori[0] == data[0])
-            # print(grad_ori[0] == grad[0])
-
-
-            # self.model.train()
-
-            # input_gradient_loss = nn.MSELoss()(grad_r, grad)
-            mask_loss = nn.MSELoss()(mask_r, mask)
-            input_gradient_loss = nn.MSELoss()(grad_r, grad_r_r)
-            # loss = s_loss + us_loss * self.args.usvt_weight
-            # loss = us_loss * self.args.usvt_weight
-            # loss = s_loss
-
-            # if self.cur_epoch != 0 and 20*input_gradient_loss.item() < s_loss.item():
-            #     loss = s_loss
-            # else:
-            #     loss = s_loss +  5*input_gradient_loss
-            #     # loss = s_loss
-            # if abs_grad.item()>0.4 and abs_grad.item() < 1.0:
-            #     loss = s_loss  +  5*input_gradient_loss
-            # else:
-            #     loss = s_loss
+            # # self.model.eval()
+            # n_random = torch.randint(0, 4, (len(data), ))
+            #
+            # n_logit2, _ = self.model(data)
+            # activations = self.input_grad.activations['out']
+            #
+            # grad = self.input_grad.get_input_gradient(n_logit2, create_graph=True)
+            # abs_grad = torch.norm(grad)
+            #
+            # mask = self.input_grad.get_mask(activations, grad).data
+            # # k = 5
+            # # tf.ToPILImage()(visualize_cam(mask[k], data[k])[0]).show()
+            # # tf.ToPILImage()(visualize_cam(mask[k], data[k])[1]).show()
+            #
+            # grad *= 100000
+            #
+            #
+            # data_r = torch.zeros_like(data)
+            # for j in range(len(data)): data_r[j] = torch.rot90(data[j], -n_random[j].item(), [1, 2])
+            # n_logit_r, _ = self.model(data_r)
+            # activations_r = self.input_grad.activations['out']
+            #
+            #
+            # grad_r = self.input_grad.get_input_gradient(n_logit_r, create_graph=True)
+            # abs_grad_r = torch.norm(grad_r)
+            #
+            # mask_r = self.input_grad.get_mask(activations_r, grad_r)
+            # # tf.ToPILImage()(visualize_cam(mask_r[k], data_r[k])[0]).show()
+            # # tf.ToPILImage()(visualize_cam(mask_r[k], data_r[k])[1]).show()
+            #
+            # for j in range(len(mask_r)): mask_r[j] = torch.rot90(mask_r[j], n_random[j].item(), [1, 2])
+            #
+            # grad_r_r = torch.zeros_like(grad_r)
+            # for j in range(len(grad_r)): grad_r_r[j] = torch.rot90(grad_r[j], n_random[j].item(), [1, 2])
+            # grad_r *= 100000
+            # # grad_ori = grad_ori.reshape(grad_ori.shape[0], -1)
+            # # print(data_ori[0] == data[0])
+            # # print(grad_ori[0] == grad[0])
+            #
+            #
+            # # self.model.train()
+            #
+            # # input_gradient_loss = nn.MSELoss()(grad_r, grad)
+            # mask_loss = nn.MSELoss()(mask_r, mask)
+            # input_gradient_loss = nn.MSELoss()(grad_r, grad_r_r)
+            # # loss = s_loss + us_loss * self.args.usvt_weight
+            # # loss = us_loss * self.args.usvt_weight
+            # # loss = s_loss
+            #
+            # # if self.cur_epoch != 0 and 20*input_gradient_loss.item() < s_loss.item():
+            # #     loss = s_loss
+            # # else:
+            # #     loss = s_loss +  5*input_gradient_loss
+            # #     # loss = s_loss
+            # # if abs_grad.item()>0.4 and abs_grad.item() < 1.0:
+            # #     loss = s_loss  +  5*input_gradient_loss
+            # # else:
+            # #     loss = s_loss
             loss = s_loss
 
 
@@ -318,9 +323,9 @@ class Trainer:
             if i == len(self.train_data_loader) - 1:
                 print()
                 pp(f'@{acc_s}:train_acc:s;{acc_u}:u')
-                pp(f'train_loss:s:{s_loss.item()};input_gradient_loss:{input_gradient_loss.item()}')
-                pp(f'mask_loss:{mask_loss.item()}')
-                pp(f'loss:{loss.item()},abs_grad:{abs_grad.item()},abs_grad_r:{abs_grad_r.item()}')
+                pp(f'train_loss:s:{s_loss.item()}')
+                # pp(f'mask_loss:{mask_loss.item()};input_gradient_loss:{input_gradient_loss.item()}')
+                # pp(f'loss:{loss.item()},abs_grad:{abs_grad.item()},abs_grad_r:{abs_grad_r.item()}')
 
                 # pp(f'train_loss:s:{s_loss.item()};u:{us_loss.item()}')
                 # pp(f'@{acc_u}:train_acc:u')
@@ -331,13 +336,13 @@ class Trainer:
 
         # eval
         self.model.eval()
-        with torch.no_grad():
-            for phase, loader in self.test_s_loaders.items():
-                s_acc, us_acc = Trainer.test(self.model, loader, device=self.device)
-                pp(f'${s_acc}:{phase}_acc')
-                if self.args.wandb:
-                    wandb.log({f'acc/{phase}': s_acc})
-                self.results[phase][self.cur_epoch] = s_acc
+        # with torch.no_grad():
+        for phase, loader in self.test_s_loaders.items():
+            s_acc, us_acc = Trainer.test(self.model, loader, device=self.device)
+            pp(f'${s_acc}:{phase}_acc')
+            if self.args.wandb:
+                wandb.log({f'acc/{phase}': s_acc})
+            self.results[phase][self.cur_epoch] = s_acc
 
             # for phase, loader in self.test_us_loaders.items():
             #     s_acc, us_acc = Trainer.test(self.model, loader, device=self.device)
@@ -414,6 +419,7 @@ def main():
             del state_dict["usv_classifier.weight"]
             del state_dict["usv_classifier.bias"]
             model.load_state_dict(state_dict, strict=False)
+
         # monitor_memory()
 
         if args.wandb:

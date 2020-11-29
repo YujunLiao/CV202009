@@ -38,6 +38,20 @@ class AlexNetCaffe(nn.Module):
             ("drop7", nn.Dropout() if dropout else Id())]))
 
         self.usv_classifier = nn.Linear(4096, num_usv_classes)
+
+        self.classifier2 = nn.Sequential(OrderedDict([
+            ("relu5", nn.ReLU(inplace=True)),
+            ("pool5", nn.MaxPool2d(kernel_size=3, stride=2, ceil_mode=True)),
+            ("Flatten", Flatten()),
+            ("fc6", nn.Linear(256 * 6 * 6, 4096)),
+            ("relu6", nn.ReLU(inplace=True)),
+            ("drop6", nn.Dropout() if dropout else Id()),
+            ("fc7", nn.Linear(4096, 4096)),
+            ("relu7", nn.ReLU(inplace=True)),
+            ("drop7", nn.Dropout() if dropout else Id()),
+            ("usv_classifier", nn.Linear(4096, num_usv_classes))
+
+        ]))
         # self.class_classifier = nn.Linear(4096, num_classes)
         # self.domain_classifier = nn.Sequential(
         #     nn.Linear(256 * 6 * 6, 1024),
@@ -49,23 +63,48 @@ class AlexNetCaffe(nn.Module):
         #     nn.Linear(1024, domains))
 
     def get_params(self, lr):
+        # return [
+        #     {"params": self.features.parameters(), "lr": 0.},
+        #     {"params": chain(self.classifier.parameters(),
+        #                      # self.usv_classifier.parameters(),
+        #                      self.class_classifier.parameters()), #, self.domain_classifier.parameters()
+        #     "lr": lr}]
+
         return [
-            {"params": self.features.parameters(), "lr": 0.},
-            {"params": chain(self.classifier.parameters(),
-                             # self.usv_classifier.parameters(),
-                             self.class_classifier.parameters()), #, self.domain_classifier.parameters()
-            "lr": lr}]
+            {"params": chain(
+                self.features.parameters(),
+                # self.classifier.parameters(),
+                # self.usv_classifier.parameters(),
+            ),
+            # "lr": lr,
+            "lr": 0.
+            },
+            {"params":
+                 chain(self.classifier2.parameters(),
+                       self.classifier.parameters(),
+                       self.usv_classifier.parameters(),
+                       ),
+             "lr": lr
+            }
+        ]
 
     def is_patch_based(self):
         return False
 
-    def forward(self, x, lambda_val=0):
+
+    def forward(self, x, lambda_val=0, first=True):
         x = self.features(x*57.6)  #57.6 is the magic number needed to bring torch data back to the range of caffe data, based on used std
         x = x.view(x.size(0), -1)
         #d = ReverseLayerF.apply(x, lambda_val)
         x = self.classifier(x)
-        # return self.usv_classifier(x), self.class_classifier(x)#, self.domain_classifier(d)
-        return self.usv_classifier(x), -1
+        # # return self.usv_classifier(x), self.class_classifier(x)#, self.domain_classifier(d)
+        #
+        n_logit = self.usv_classifier(x)
+        grad = self.input_grad.get_input_gradient(n_logit, create_graph=True)
+        n_logit_2 = self.classifier2(grad)
+        return n_logit+10*n_logit_2, -1
+        # return self.classifier2(x), -1
+
 
 
 class Flatten(nn.Module):

@@ -9,7 +9,8 @@ import torch
 class InputGrad:
     def __init__(self, model):
         self.model = model
-        self.layer = self.get_layers()['features.conv5']
+        self.layers = self.get_layers()
+        self.layer = self.layers['features.conv5']
         self.activations = dict()
 
         def forward_hook(module, input, output):
